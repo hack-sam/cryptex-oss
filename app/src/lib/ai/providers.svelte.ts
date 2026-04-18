@@ -51,9 +51,20 @@ export function getProvider(id: ProviderId, instanceId?: string): ProviderRecord
   });
 }
 
+// Lazy import to avoid circular dependency: catalog.svelte.ts imports listProviders from here.
+async function triggerCatalogRefresh(): Promise<void> {
+  try {
+    const { refreshCatalog } = await import('./catalog.svelte');
+    refreshCatalog(true).catch((err) => console.warn('[providers] catalog refresh failed:', err));
+  } catch (err) {
+    console.warn('[providers] could not load catalog module:', err);
+  }
+}
+
 export function addProvider(record: ProviderRecord): void {
   _records = [..._records, record];
   persist();
+  triggerCatalogRefresh();
 }
 
 export function updateProvider(
@@ -67,6 +78,7 @@ export function updateProvider(
     return { ...p, ...patch } as ProviderRecord;
   });
   persist();
+  triggerCatalogRefresh();
 }
 
 export function removeProvider(id: ProviderId, instanceId?: string): void {
@@ -76,6 +88,7 @@ export function removeProvider(id: ProviderId, instanceId?: string): void {
     return false;
   });
   persist();
+  triggerCatalogRefresh();
 }
 
 export function hasAnyKey(): boolean {

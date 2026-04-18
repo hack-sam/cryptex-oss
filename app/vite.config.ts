@@ -40,6 +40,8 @@ export default defineConfig({
       'lucide-svelte/icons/arrow-up',
       'lucide-svelte/icons/bomb',
       'lucide-svelte/icons/book-open',
+      'lucide-svelte/icons/brain',
+      'lucide-svelte/icons/braces',
       'lucide-svelte/icons/check',
       'lucide-svelte/icons/chevron-down',
       'lucide-svelte/icons/chevron-right',
@@ -52,7 +54,9 @@ export default defineConfig({
       'lucide-svelte/icons/external-link',
       'lucide-svelte/icons/eye',
       'lucide-svelte/icons/eye-off',
+      'lucide-svelte/icons/file',
       'lucide-svelte/icons/flask-conical',
+      'lucide-svelte/icons/gift',
       'lucide-svelte/icons/github',
       'lucide-svelte/icons/hash',
       'lucide-svelte/icons/history',
@@ -80,6 +84,7 @@ export default defineConfig({
       'lucide-svelte/icons/trash-2',
       'lucide-svelte/icons/triangle-alert',
       'lucide-svelte/icons/wand-sparkles',
+      'lucide-svelte/icons/wrench',
       'lucide-svelte/icons/x',
       'lucide-svelte/icons/zap'
     ]

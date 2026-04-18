@@ -1,7 +1,7 @@
 <script lang="ts">
   import { MAIN_LANGS, EXOTIC_LANGS, getLangCode, flagEmoji, buildTranslatePrompt, type Lang } from './langs';
   import { chat, hasApiKey, OpenRouterError, type ChatMessage } from '$lib/ai/openrouter';
-  import ModelPicker from '$lib/ai/ModelPicker.svelte';
+  import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
   import { goto } from '$app/navigation';
   import { notify } from '$lib/stores/toast.svelte';
@@ -17,7 +17,11 @@
   import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
   import { GatewayError } from '$lib/ai/types';
 
-  const modelPref = createPersistedState<string>('cryptex.translate.model', 'google/gemma-3-27b-it');
+  const modelPref = createPersistedState<string>('cryptex.translate.model', 'openrouter:google/gemma-3-27b-it');
+
+  $effect(() => {
+    if (modelPref.value && !modelPref.value.includes(':')) modelPref.value = `openrouter:${modelPref.value}`;
+  });
   const customLangsPersist = createPersistedState<Lang[]>('cryptex.translate.customLangs', []);
 
   const s = translateState;
@@ -55,7 +59,7 @@
 
   async function translateTo(langName: string) {
     if (!keyConfigured) {
-      errorMsg = 'Set your OpenRouter API key in Settings first.';
+      errorMsg = 'No provider configured. Add one in Settings to unlock this tool.';
       return;
     }
     if (!s.input.trim()) {
@@ -94,7 +98,7 @@
           // TranslateGemma may not be on OpenRouter yet — fall back to Gemma 3 27B
           errorMsg = 'TranslateGemma not yet on OpenRouter — retrying with Gemma 3 27B.';
           notify.warn(errorMsg);
-          modelPref.value = 'google/gemma-3-27b-it';
+          modelPref.value = 'openrouter:google/gemma-3-27b-it';
           loading = false;
           activeLang = '';
           return await translateTo(langName);
@@ -104,7 +108,7 @@
         // Legacy shim path
         errorMsg = 'TranslateGemma not yet on OpenRouter — retrying with Gemma 3 27B.';
         notify.warn(errorMsg);
-        modelPref.value = 'google/gemma-3-27b-it';
+        modelPref.value = 'openrouter:google/gemma-3-27b-it';
         loading = false;
         activeLang = '';
         return await translateTo(langName);
@@ -160,8 +164,8 @@
     <div class="flex items-start gap-3 rounded-xl border border-accent/40 bg-accent/10 p-4">
       <Key size={16} class="text-accent mt-0.5 shrink-0" />
       <div class="text-sm">
-        <strong class="text-foreground">No API key set.</strong>
-        <span class="text-muted-foreground"> Add your OpenRouter key in <a href={base + '/settings/'} class="text-primary underline underline-offset-2 hover:text-primary/80">Settings</a>.</span>
+        <strong class="text-foreground">No provider configured.</strong>
+        <span class="text-muted-foreground"> Add one in <a href={base + '/settings/'} class="text-primary underline underline-offset-2 hover:text-primary/80">Settings</a> to unlock this tool.</span>
       </div>
     </div>
   {/if}
@@ -176,9 +180,10 @@
         class="w-full rounded-lg border border-input bg-background/70 px-3 py-2 font-mono text-sm focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       ></textarea>
       <div class="pt-2 border-t border-border/50">
-        <ModelPicker
-          bind:value={modelPref.value}
-          onchange={(id) => (modelPref.value = id)}
+        <ModelPickerV2
+          value={modelPref.value}
+          onChange={(v) => (modelPref.value = v)}
+          recentsKey="cryptex.tg.recentModels"
         />
         <p class="text-[11px] text-muted-foreground mt-1">
           Tip: Gemma 3 and Gemini Flash models work especially well for translation.

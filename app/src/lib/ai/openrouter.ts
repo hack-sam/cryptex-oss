@@ -12,7 +12,7 @@ import type {
 } from './types';
 import { GatewayError } from './types';
 import { chat as gatewayChat, validateKey as gatewayValidateKey, fetchModels as gatewayFetchModels } from './gateway';
-import { listProviders, updateProvider } from './providers.svelte';
+import { listProviders, updateProvider, hasAnyKey } from './providers.svelte';
 
 export type { ErrorCategory };
 export type ChatMessage = GatewayChatMessage;
@@ -31,7 +31,7 @@ function openrouterRecord() {
 
 export function getApiKey(): string { return (openrouterRecord()?.apiKey ?? '').trim(); }
 export function setApiKey(key: string): void { updateProvider('openrouter', { apiKey: key.trim() }); }
-export function hasApiKey(): boolean { return getApiKey().length > 0; }
+export function hasApiKey(): boolean { return hasAnyKey(); }
 
 export function chat(req: ChatRequest): Promise<ChatResponse> {
   // If the caller passed a bare model (no prefix), stay on OpenRouter — matches legacy behavior.

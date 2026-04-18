@@ -1,7 +1,7 @@
 <script lang="ts">
   import { STRATEGIES, getSystemPrompt } from './strategies';
   import { chat, hasApiKey, OpenRouterError } from '$lib/ai/openrouter';
-  import ModelPicker from '$lib/ai/ModelPicker.svelte';
+  import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
   import { base } from '$app/paths';
   import { goto } from '$app/navigation';
@@ -17,7 +17,11 @@
   import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
   import { GatewayError } from '$lib/ai/types';
 
-  const modelPref = createPersistedState<string>('cryptex.pc.model', 'openrouter/auto');
+  const modelPref = createPersistedState<string>('cryptex.pc.model', 'openrouter:openrouter/auto');
+
+  $effect(() => {
+    if (modelPref.value && !modelPref.value.includes(':')) modelPref.value = `openrouter:${modelPref.value}`;
+  });
   const tempPref = createPersistedState<number>('cryptex.pc.temperature', 0.9);
 
   const s = promptcraftState;
@@ -29,7 +33,7 @@
 
   async function run() {
     if (!keyConfigured) {
-      errorMsg = 'Set your OpenRouter API key in Settings first.';
+      errorMsg = 'No provider configured. Add one in Settings to unlock this tool.';
       return;
     }
     if (!s.input.trim()) {
@@ -121,8 +125,8 @@
     <div class="flex items-start gap-3 rounded-xl border border-accent/40 bg-accent/10 p-4">
       <Key size={16} class="text-accent mt-0.5 shrink-0" />
       <div class="text-sm">
-        <strong class="text-foreground">No API key set.</strong>
-        <span class="text-muted-foreground"> Add your OpenRouter key in <a href={base + '/settings/'} class="text-primary underline underline-offset-2 hover:text-primary/80">Settings</a> to unlock this tool.</span>
+        <strong class="text-foreground">No provider configured.</strong>
+        <span class="text-muted-foreground"> Add one in <a href={base + '/settings/'} class="text-primary underline underline-offset-2 hover:text-primary/80">Settings</a> to unlock this tool.</span>
       </div>
     </div>
   {/if}
@@ -162,9 +166,10 @@
       {/if}
 
       <div class="space-y-2 pt-2 border-t border-border/50">
-        <ModelPicker
-          bind:value={modelPref.value}
-          onchange={(id) => (modelPref.value = id)}
+        <ModelPickerV2
+          value={modelPref.value}
+          onChange={(v) => (modelPref.value = v)}
+          recentsKey="cryptex.pc.recentModels"
         />
 
         <label class="block space-y-1">
