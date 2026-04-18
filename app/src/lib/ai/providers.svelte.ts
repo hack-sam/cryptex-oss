@@ -1,0 +1,87 @@
+import { browser } from '$app/environment';
+import type { ProviderRecord, ProviderId } from './types';
+
+const STORAGE_KEY = 'cryptex.providers';
+
+function tryGetLS(key: string): string | null {
+  try {
+    if (typeof localStorage !== 'undefined') return localStorage.getItem(key);
+  } catch { /* ignore */ }
+  return null;
+}
+
+function trySetLS(key: string, value: string): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
+  } catch { /* ignore */ }
+}
+
+function seedInitial(): ProviderRecord[] {
+  // Try to read legacy key from localStorage (works in browser and in test mocks on globalThis)
+  const legacyKey = (tryGetLS('cryptex.openrouterApiKey') || '').trim();
+  return [{ id: 'openrouter', apiKey: legacyKey, enabled: true }];
+}
+
+function loadPersisted(): ProviderRecord[] | null {
+  const raw = tryGetLS(STORAGE_KEY);
+  if (!raw) return null;
+  try { return JSON.parse(raw) as ProviderRecord[]; } catch { return null; }
+}
+
+// Module-level state — initialized from persisted storage or seed
+let _records: ProviderRecord[] = loadPersisted() ?? seedInitial();
+
+function persist(): void {
+  trySetLS(STORAGE_KEY, JSON.stringify(_records));
+}
+
+// In the browser, also set up a $state-based reactive store for Svelte reactivity
+// This is module-augmented only when browser is true.
+// For now, the public functions are synchronous and work in both environments.
+// Svelte components that need reactivity should use $derived(() => listProviders()).
+
+export function listProviders(): ProviderRecord[] {
+  return _records;
+}
+
+export function getProvider(id: ProviderId, instanceId?: string): ProviderRecord | undefined {
+  return _records.find((p) => {
+    if (p.id !== id) return false;
+    if (id === 'openai-compat' && instanceId) return (p as { instanceId: string }).instanceId === instanceId;
+    return true;
+  });
+}
+
+export function addProvider(record: ProviderRecord): void {
+  _records = [..._records, record];
+  persist();
+}
+
+export function updateProvider(
+  id: ProviderId,
+  patch: Partial<ProviderRecord>,
+  instanceId?: string
+): void {
+  _records = _records.map((p) => {
+    if (p.id !== id) return p;
+    if (id === 'openai-compat' && instanceId && (p as { instanceId: string }).instanceId !== instanceId) return p;
+    return { ...p, ...patch } as ProviderRecord;
+  });
+  persist();
+}
+
+export function removeProvider(id: ProviderId, instanceId?: string): void {
+  _records = _records.filter((p) => {
+    if (p.id !== id) return true;
+    if (id === 'openai-compat' && instanceId) return (p as { instanceId: string }).instanceId !== instanceId;
+    return false;
+  });
+  persist();
+}
+
+export function hasAnyKey(): boolean {
+  return _records.some((p) => p.enabled && 'apiKey' in p && Boolean(p.apiKey));
+}
+
+// TODO (Commit 4): wire up rune-backed $state reactivity so Svelte components
+// re-render automatically when provider records change.

@@ -8,7 +8,7 @@
    *   - shows selected model's context length + pricing when known
    */
   import { models } from '$lib/ai/models.svelte';
-  import type { Model } from '$lib/ai/openrouter';
+  import type { Model } from '$lib/ai/types';
   import { cn } from '$lib/utils/cn';
   import RefreshCw from 'lucide-svelte/icons/refresh-cw';
   import Search from 'lucide-svelte/icons/search';
@@ -21,7 +21,7 @@
     onchange: (id: string) => void;
     /** Show only free models (both prompt + completion price 0) */
     freeOnly?: boolean;
-    /** Filter by provider match (substring match on provider name) */
+    /** Filter by provider match (substring match on upstreamProvider name) */
     providerFilter?: string;
   }
   let { value = $bindable(), onchange, freeOnly = false, providerFilter = '' }: Props = $props();
@@ -36,19 +36,23 @@
     const list = models.list;
     return list.filter((m) => {
       if (freeOnly && !m.isFree) return false;
-      if (providerFilter && !m.provider.toLowerCase().includes(providerFilter.toLowerCase())) return false;
+      const displayProvider = m.upstreamProvider ?? m.provider;
+      if (providerFilter && !displayProvider.toLowerCase().includes(providerFilter.toLowerCase())) return false;
       if (!q) return true;
       return (
         m.id.toLowerCase().includes(q) ||
         m.name.toLowerCase().includes(q) ||
-        m.provider.toLowerCase().includes(q)
+        displayProvider.toLowerCase().includes(q)
       );
     });
   });
 
   const grouped = $derived.by(() => {
     const out: Record<string, Model[]> = {};
-    for (const m of filtered) (out[m.provider] ||= []).push(m);
+    for (const m of filtered) {
+      const key = m.upstreamProvider ?? m.provider;
+      (out[key] ||= []).push(m);
+    }
     return Object.entries(out).sort(([a], [b]) => a.localeCompare(b));
   });
 
@@ -59,12 +63,11 @@
     query = '';
   }
 
-  function formatPrice(raw?: string): string {
-    if (!raw) return '';
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n === 0) return 'free';
-    // Prices are per token. Convert to per-million-token.
-    return `$${(n * 1_000_000).toFixed(2)}/M`;
+  function formatPrice(usd?: number): string {
+    if (usd === undefined || usd === null) return '';
+    if (!Number.isFinite(usd) || usd === 0) return 'free';
+    // Convert per-token price to per-million-token display
+    return `$${(usd * 1_000_000).toFixed(2)}/M`;
   }
 
   function formatContext(n?: number): string {
@@ -130,8 +133,8 @@
       {#if selected}
         <span class="block truncate">{selected.name}</span>
         <span class="block truncate text-[10px] text-muted-foreground">
-          {selected.provider}
-          {#if selected.context_length}· {formatContext(selected.context_length)}{/if}
+          {selected.upstreamProvider ?? selected.provider}
+          {#if selected.contextLength}· {formatContext(selected.contextLength)}{/if}
           {#if selected.isFree}· free{/if}
         </span>
       {:else}
@@ -199,8 +202,8 @@
                           <span class="block truncate text-[10px] text-muted-foreground font-mono">{m.id}</span>
                         </span>
                         <span class="shrink-0 text-right text-[10px] text-muted-foreground">
-                          {#if m.context_length}<span class="block">{formatContext(m.context_length)}</span>{/if}
-                          {#if m.pricing?.prompt && !m.isFree}<span class="block">{formatPrice(m.pricing.prompt)}</span>{/if}
+                          {#if m.contextLength}<span class="block">{formatContext(m.contextLength)}</span>{/if}
+                          {#if m.pricing?.promptUsd && !m.isFree}<span class="block">{formatPrice(m.pricing.promptUsd)}</span>{/if}
                         </span>
                       </button>
                     </li>

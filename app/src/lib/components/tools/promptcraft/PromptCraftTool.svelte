@@ -35,7 +35,6 @@
 
     error = '';
     loading = true;
-    s.outputs = [];
     const system = getSystemPrompt(s.strategy, s.customInstruction);
     const n = Math.max(1, Math.min(10, s.count));
 
@@ -61,13 +60,14 @@
       else if (r.reason instanceof Error) lastError = r.reason.message;
     }
 
-    s.outputs = fulfilled;
     loading = false;
 
     if (fulfilled.length === 0) {
+      // Preserve previous outputs — don't wipe them on a transient failure
       error = lastError || 'All variants failed. Check your model or try again.';
       notify.error(error);
     } else {
+      s.outputs = fulfilled;
       if (fulfilled.length < n) notify.warn(`${fulfilled.length}/${n} variants succeeded`);
       else notify.success(`Generated ${fulfilled.length} variants`);
       sessionLog.record({

@@ -8,9 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "size": "npm run build && size-limit"
   },
   "devDependencies": {
+    "@size-limit/preset-app": "11.1.6",
     "@sveltejs/adapter-static": "^3.0.6",
     "@sveltejs/kit": "^2.8.0",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
@@ -22,6 +24,7 @@
     "mdsvex": "^0.12.7",
     "mode-watcher": "^0.4.1",
     "postcss": "^8.4.49",
+    "size-limit": "11.1.6",
     "svelte": "^5.1.9",
     "svelte-check": "^4.0.5",
     "tailwind-merge": "^2.5.4",
@@ -34,6 +37,8 @@
     "vitest": "^2.1.4"
   },
   "dependencies": {
+    "@openrouter/ai-sdk-provider": "2.8.0",
+    "ai": "6.0.168",
     "gpt-tokenizer": "^2.9.0"
   }
 }

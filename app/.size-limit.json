@@ -1,0 +1,8 @@
+[
+  {
+    "name": "AI tool route (PromptCraft)",
+    "path": "build/_app/immutable/chunks/*.js",
+    "import": "{ chat } from '/src/lib/ai/gateway.ts'",
+    "limit": "50 KB"
+  }
+]

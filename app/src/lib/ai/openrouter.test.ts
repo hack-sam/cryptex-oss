@@ -12,7 +12,6 @@ import {
   getApiKey,
   setApiKey,
   hasApiKey,
-  fetchModels,
   validateKey
 } from './openrouter';
 
@@ -75,91 +74,20 @@ describe('FALLBACK_MODELS', () => {
   });
 });
 
-describe('fetchModels', () => {
-  it('parses and normalizes the OpenRouter response', async () => {
-    const fakeResponse = {
-      data: [
-        {
-          id: 'anthropic/claude-sonnet-4.5',
-          name: 'Claude Sonnet 4.5',
-          description: 'Anthropic flagship',
-          context_length: 200000,
-          pricing: { prompt: '0.000003', completion: '0.000015' }
-        },
-        {
-          id: 'google/gemma-3-27b-it:free',
-          name: 'Gemma 3 27B (free)',
-          context_length: 8192,
-          pricing: { prompt: '0', completion: '0' }
-        },
-        {
-          id: 'openrouter/auto',
-          name: 'Auto (best for price)',
-          pricing: { prompt: '-1', completion: '-1' }
-        }
-      ]
-    };
-
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify(fakeResponse), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    );
-
-    const result = await fetchModels();
-    expect(result.live).toBe(true);
-    expect(result.models.length).toBe(3);
-
-    // openrouter/auto is pinned first
-    expect(result.models[0].id).toBe('openrouter/auto');
-
-    const claude = result.models.find((m) => m.id === 'anthropic/claude-sonnet-4.5')!;
-    expect(claude.provider).toBe('Anthropic');
-    expect(claude.context_length).toBe(200000);
-    expect(claude.isFree).toBe(false);
-
-    const gemma = result.models.find((m) => m.id.startsWith('google/gemma-3-27b-it'))!;
-    expect(gemma.provider).toBe('Google');
-    expect(gemma.isFree).toBe(true);
-  });
-
-  it('throws OpenRouterError with category=auth on 401', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: { message: 'Invalid key', code: 401 } }), { status: 401 })
-    );
-    await expect(fetchModels()).rejects.toBeInstanceOf(OpenRouterError);
-    try {
-      await fetchModels();
-    } catch (err) {
-      expect((err as OpenRouterError).category).toBe('auth');
-      expect((err as OpenRouterError).status).toBe(401);
-    }
-  });
-
-  it('throws OpenRouterError with category=network when fetch rejects', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new TypeError('Failed to fetch'));
-    try {
-      await fetchModels();
-    } catch (err) {
-      expect(err).toBeInstanceOf(OpenRouterError);
-      expect((err as OpenRouterError).category).toBe('network');
-    }
-  });
-});
+// fetchModels describe block removed — coverage moved to openrouter-adapter.test.ts
+// which tests the adapter's fetchCatalog() directly against the /models endpoint shape.
 
 describe('validateKey', () => {
   it('returns KeyInfo on successful validation', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({
-        data: { label: 'Test key', limit: 5.0, usage: 0.123, is_free_tier: false }
+        data: { label: 'Test key', limit: 5.0, usage: 0.123 }
       }), { status: 200 })
     );
     const info = await validateKey('sk-or-v1-valid');
     expect(info.label).toBe('Test key');
     expect(info.limit).toBe(5.0);
     expect(info.usage).toBe(0.123);
-    expect(info.is_free_tier).toBe(false);
   });
 
   it('rejects on 401', async () => {
@@ -174,16 +102,6 @@ describe('validateKey', () => {
       expect((err as OpenRouterError).category).toBe('auth');
     }
   });
-
-  it('rejects empty key without hitting network', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    try {
-      await validateKey('');
-      expect.fail('expected throw');
-    } catch (err) {
-      expect(err).toBeInstanceOf(OpenRouterError);
-      expect((err as OpenRouterError).category).toBe('auth');
-    }
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
+  // 'rejects empty key without hitting network' removed — gateway no longer
+  // short-circuits on empty key; coverage is in openrouter-adapter.test.ts.
 });

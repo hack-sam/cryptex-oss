@@ -198,7 +198,6 @@
               {#if typeof validationResult.info.limit === 'number' && validationResult.info.limit !== null}
                 of ${validationResult.info.limit.toFixed(2)}
               {/if}
-              {#if validationResult.info.is_free_tier}· free tier{/if}
             </div>
           {/if}
         </div>
