@@ -52,16 +52,17 @@ export function scheduleValidate(
   instanceId: string | undefined,
   candidate: string,
   probe: Probe
-): void {
+): boolean {
   const s = getState(provider, instanceId);
 
-  if (s.lockoutUntil && Date.now() < s.lockoutUntil) return;
+  if (s.lockoutUntil && Date.now() < s.lockoutUntil) return false;
+  if (s.lastKey === candidate && s.lastValidatedAt && Date.now() - s.lastValidatedAt < THROTTLE_MS) return false;
+
   if (s.debounceTimer) clearTimeout(s.debounceTimer);
   if (s.inflight) s.inflight.abort();
 
   s.debounceTimer = setTimeout(async () => {
     s.debounceTimer = undefined;
-    if (s.lastKey === candidate && s.lastValidatedAt && Date.now() - s.lastValidatedAt < THROTTLE_MS) return;
 
     const ctrl = new AbortController();
     s.inflight = ctrl;
@@ -85,6 +86,8 @@ export function scheduleValidate(
       s.inflight = undefined;
     }
   }, DEBOUNCE_MS);
+
+  return true;
 }
 
 export async function verifyNow(

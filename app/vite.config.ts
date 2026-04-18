@@ -1,9 +1,10 @@
 import { sveltekit } from '@sveltejs/kit/vite';
+import { svelteTesting } from '@testing-library/svelte/vite';
 import { defineConfig } from 'vite';
 import path from 'node:path';
 
 export default defineConfig({
-  plugins: [sveltekit()],
+  plugins: [sveltekit(), svelteTesting()],
   resolve: {
     alias: {
       $transformers: path.resolve(__dirname, '../src/transformers'),
@@ -84,6 +85,8 @@ export default defineConfig({
     ]
   },
   test: {
-    include: ['src/**/*.{test,spec}.{js,ts}']
+    include: ['src/**/*.{test,spec}.{js,ts}'],
+    environment: 'jsdom',
+    setupFiles: ['src/setupTests.ts']
   }
 });

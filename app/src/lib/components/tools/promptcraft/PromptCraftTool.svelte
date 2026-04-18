@@ -4,6 +4,7 @@
   import ModelPicker from '$lib/ai/ModelPicker.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
   import { base } from '$app/paths';
+  import { goto } from '$app/navigation';
   import { notify } from '$lib/stores/toast.svelte';
   import { sessionLog } from '$lib/stores/sessionLog.svelte';
   import { cn } from '$lib/utils/cn';
@@ -13,27 +14,31 @@
   import ArrowUp from 'lucide-svelte/icons/arrow-up';
   import Key from 'lucide-svelte/icons/key';
   import { promptcraftState } from './promptcraft.state.svelte';
+  import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
+  import { GatewayError } from '$lib/ai/types';
 
   const modelPref = createPersistedState<string>('cryptex.pc.model', 'openrouter/auto');
   const tempPref = createPersistedState<number>('cryptex.pc.temperature', 0.9);
 
   const s = promptcraftState;
   let loading = $state(false);
-  let error = $state('');
+  let errorMsg = $state('');
+  let lastError = $state<GatewayError | null>(null);
 
   const keyConfigured = $derived(hasApiKey());
 
   async function run() {
     if (!keyConfigured) {
-      error = 'Set your OpenRouter API key in Settings first.';
+      errorMsg = 'Set your OpenRouter API key in Settings first.';
       return;
     }
     if (!s.input.trim()) {
-      error = 'Enter a prompt to mutate.';
+      errorMsg = 'Enter a prompt to mutate.';
       return;
     }
 
-    error = '';
+    errorMsg = '';
+    lastError = null;
     loading = true;
     const system = getSystemPrompt(s.strategy, s.customInstruction);
     const n = Math.max(1, Math.min(10, s.count));
@@ -53,19 +58,22 @@
 
     const results = await Promise.allSettled(runs);
     const fulfilled: string[] = [];
-    let lastError = '';
+    let lastErrMsg = '';
+    let lastGwError: GatewayError | null = null;
     for (const r of results) {
       if (r.status === 'fulfilled') fulfilled.push(r.value.content);
-      else if (r.reason instanceof OpenRouterError) lastError = r.reason.message;
-      else if (r.reason instanceof Error) lastError = r.reason.message;
+      else if (r.reason instanceof GatewayError) { lastGwError = r.reason; lastErrMsg = r.reason.message; }
+      else if (r.reason instanceof OpenRouterError) { lastErrMsg = r.reason.message; }
+      else if (r.reason instanceof Error) lastErrMsg = r.reason.message;
     }
 
     loading = false;
 
     if (fulfilled.length === 0) {
       // Preserve previous outputs — don't wipe them on a transient failure
-      error = lastError || 'All variants failed. Check your model or try again.';
-      notify.error(error);
+      lastError = lastGwError;
+      errorMsg = lastGwError ? '' : (lastErrMsg || 'All variants failed. Check your model or try again.');
+      if (!lastGwError) notify.error(errorMsg);
     } else {
       s.outputs = fulfilled;
       if (fulfilled.length < n) notify.warn(`${fulfilled.length}/${n} variants succeeded`);
@@ -196,8 +204,18 @@
           <Sparkles size={14} /> Mutate
         {/if}
       </button>
-      {#if error}
-        <p class="text-xs text-destructive">{error}</p>
+
+      {#if lastError}
+        <ErrorBanner
+          error={lastError}
+          onRetry={() => run()}
+          onOpenSettings={() => {
+            const frag = lastError?.provider === 'openai-compat' ? 'providers' : `provider-${lastError?.provider}`;
+            goto(`/settings#${frag}`);
+          }}
+        />
+      {:else if errorMsg}
+        <p class="text-xs text-destructive">{errorMsg}</p>
       {/if}
     </div>
 

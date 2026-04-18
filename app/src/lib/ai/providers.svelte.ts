@@ -28,17 +28,16 @@ function loadPersisted(): ProviderRecord[] | null {
   try { return JSON.parse(raw) as ProviderRecord[]; } catch { return null; }
 }
 
-// Module-level state — initialized from persisted storage or seed
-let _records: ProviderRecord[] = loadPersisted() ?? seedInitial();
+// Module-level state — rune-backed so Svelte components re-render on change
+let _records = $state<ProviderRecord[]>(loadPersisted() ?? seedInitial());
 
 function persist(): void {
   trySetLS(STORAGE_KEY, JSON.stringify(_records));
 }
 
-// In the browser, also set up a $state-based reactive store for Svelte reactivity
-// This is module-augmented only when browser is true.
-// For now, the public functions are synchronous and work in both environments.
-// Svelte components that need reactivity should use $derived(() => listProviders()).
+// Public functions are synchronous and work in both SSR and browser environments.
+// Svelte components can read _records directly via listProviders(); $state ensures
+// reactive re-renders whenever a mutating function replaces the array.
 
 export function listProviders(): ProviderRecord[] {
   return _records;
@@ -83,5 +82,6 @@ export function hasAnyKey(): boolean {
   return _records.some((p) => p.enabled && 'apiKey' in p && Boolean(p.apiKey));
 }
 
-// TODO (Commit 4): wire up rune-backed $state reactivity so Svelte components
-// re-render automatically when provider records change.
+// Provider records are backed by $state (see _records above); Svelte components
+// re-render automatically when any mutating function (addProvider, updateProvider,
+// removeProvider) assigns a new array to _records.

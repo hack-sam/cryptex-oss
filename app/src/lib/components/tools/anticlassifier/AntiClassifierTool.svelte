@@ -4,6 +4,7 @@
   import ModelPicker from '$lib/ai/ModelPicker.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
   import { base } from '$app/paths';
+  import { goto } from '$app/navigation';
   import { notify } from '$lib/stores/toast.svelte';
   import { sessionLog } from '$lib/stores/sessionLog.svelte';
   import Shield from 'lucide-svelte/icons/shield';
@@ -11,27 +12,31 @@
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Key from 'lucide-svelte/icons/key';
   import { anticlassifierState } from './anticlassifier.state.svelte';
+  import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
+  import { GatewayError } from '$lib/ai/types';
 
   const modelPref = createPersistedState<string>('cryptex.ac.model', 'openrouter/auto');
   const tempPref = createPersistedState<number>('cryptex.ac.temperature', 0.7);
 
   const s = anticlassifierState;
   let loading = $state(false);
-  let error = $state('');
+  let errorMsg = $state('');
+  let lastError = $state<GatewayError | null>(null);
 
   const keyConfigured = $derived(hasApiKey());
 
   async function run() {
     if (!keyConfigured) {
-      error = 'Set your OpenRouter API key in Settings first.';
+      errorMsg = 'Set your OpenRouter API key in Settings first.';
       return;
     }
     if (!s.input.trim()) {
-      error = 'Enter a prompt to transform.';
+      errorMsg = 'Enter a prompt to transform.';
       return;
     }
     loading = true;
-    error = '';
+    errorMsg = '';
+    lastError = null;
     s.output = '';
     try {
       const res = await chat({
@@ -55,9 +60,15 @@
       });
       notify.success('Transformation complete');
     } catch (err) {
-      if (err instanceof OpenRouterError) error = err.message;
-      else error = (err as Error).message || 'Request failed';
-      notify.error(error);
+      if (err instanceof GatewayError) {
+        lastError = err;
+      } else if (err instanceof OpenRouterError) {
+        errorMsg = err.message;
+        notify.error(errorMsg);
+      } else {
+        errorMsg = (err as Error).message || 'Request failed';
+        notify.error(errorMsg);
+      }
     } finally {
       loading = false;
     }
@@ -130,8 +141,18 @@
           <Shield size={14} /> Transform
         {/if}
       </button>
-      {#if error}
-        <p class="text-xs text-destructive">{error}</p>
+
+      {#if lastError}
+        <ErrorBanner
+          error={lastError}
+          onRetry={() => run()}
+          onOpenSettings={() => {
+            const frag = lastError?.provider === 'openai-compat' ? 'providers' : `provider-${lastError?.provider}`;
+            goto(`/settings#${frag}`);
+          }}
+        />
+      {:else if errorMsg}
+        <p class="text-xs text-destructive">{errorMsg}</p>
       {/if}
     </div>
 

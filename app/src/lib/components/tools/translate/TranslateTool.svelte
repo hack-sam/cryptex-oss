@@ -3,6 +3,7 @@
   import { chat, hasApiKey, OpenRouterError, type ChatMessage } from '$lib/ai/openrouter';
   import ModelPicker from '$lib/ai/ModelPicker.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
+  import { goto } from '$app/navigation';
   import { notify } from '$lib/stores/toast.svelte';
   import { sessionLog } from '$lib/stores/sessionLog.svelte';
   import Languages from 'lucide-svelte/icons/languages';
@@ -13,6 +14,8 @@
   import Key from 'lucide-svelte/icons/key';
   import { base } from '$app/paths';
   import { translateState } from './translate.state.svelte';
+  import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
+  import { GatewayError } from '$lib/ai/types';
 
   const modelPref = createPersistedState<string>('cryptex.translate.model', 'google/gemma-3-27b-it');
   const customLangsPersist = createPersistedState<Lang[]>('cryptex.translate.customLangs', []);
@@ -20,7 +23,8 @@
   const s = translateState;
   let activeLang = $state('');
   let loading = $state(false);
-  let error = $state('');
+  let errorMsg = $state('');
+  let lastError = $state<GatewayError | null>(null);
 
   // Custom-lang form
   let addingLang = $state(false);
@@ -51,18 +55,19 @@
 
   async function translateTo(langName: string) {
     if (!keyConfigured) {
-      error = 'Set your OpenRouter API key in Settings first.';
+      errorMsg = 'Set your OpenRouter API key in Settings first.';
       return;
     }
     if (!s.input.trim()) {
-      error = 'Enter text to translate.';
+      errorMsg = 'Enter text to translate.';
       return;
     }
 
     const langCode = getLangCode(langName);
     loading = true;
     activeLang = langName;
-    error = '';
+    errorMsg = '';
+    lastError = null;
     s.output = '';
 
     try {
@@ -84,17 +89,29 @@
       });
       notify.success(`Translated to ${langName}`);
     } catch (err) {
-      if (err instanceof OpenRouterError && err.category === 'not_found' && isTranslateGemma(modelPref.value)) {
-        // TranslateGemma may not be on OpenRouter yet — fall back to Gemma 3 27B
-        error = 'TranslateGemma not yet on OpenRouter — retrying with Gemma 3 27B.';
-        notify.warn(error);
+      if (err instanceof GatewayError) {
+        if (err.category === 'not_found' && isTranslateGemma(modelPref.value)) {
+          // TranslateGemma may not be on OpenRouter yet — fall back to Gemma 3 27B
+          errorMsg = 'TranslateGemma not yet on OpenRouter — retrying with Gemma 3 27B.';
+          notify.warn(errorMsg);
+          modelPref.value = 'google/gemma-3-27b-it';
+          loading = false;
+          activeLang = '';
+          return await translateTo(langName);
+        }
+        lastError = err;
+      } else if (err instanceof OpenRouterError && err.category === 'not_found' && isTranslateGemma(modelPref.value)) {
+        // Legacy shim path
+        errorMsg = 'TranslateGemma not yet on OpenRouter — retrying with Gemma 3 27B.';
+        notify.warn(errorMsg);
         modelPref.value = 'google/gemma-3-27b-it';
         loading = false;
         activeLang = '';
         return await translateTo(langName);
+      } else {
+        errorMsg = err instanceof Error ? err.message : 'Translation failed';
+        notify.error(errorMsg);
       }
-      error = err instanceof Error ? err.message : 'Translation failed';
-      notify.error(error);
     } finally {
       loading = false;
       activeLang = '';
@@ -191,8 +208,17 @@
         placeholder="Pick a language below to translate"
         class="w-full rounded-lg border border-input bg-background/40 px-3 py-2 font-mono text-sm"
       ></textarea>
-      {#if error}
-        <p class="text-xs text-destructive">{error}</p>
+      {#if lastError}
+        <ErrorBanner
+          error={lastError}
+          onRetry={() => activeLang ? translateTo(activeLang) : undefined}
+          onOpenSettings={() => {
+            const frag = lastError?.provider === 'openai-compat' ? 'providers' : `provider-${lastError?.provider}`;
+            goto(`/settings#${frag}`);
+          }}
+        />
+      {:else if errorMsg}
+        <p class="text-xs text-destructive">{errorMsg}</p>
       {/if}
     </div>
   </div>
