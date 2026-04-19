@@ -2,7 +2,8 @@ import { ulid } from 'ulid';
 import { db } from './db';
 import { session } from '$lib/auth/session.svelte';
 import type {
-  ChatRow, MessageRow, AttachmentRow, ChatSettings
+  ChatRow, MessageRow, AttachmentRow, ChatSettings,
+  AttackChainRunRow, AttackChainLayerTrace
 } from './types';
 import { DEFAULT_CHAT_SETTINGS } from './types';
 
@@ -136,5 +137,62 @@ export const repo = {
       });
     }
     return newChat;
+  },
+
+  /** Persist one completed Attack Chain run. Caller supplies everything
+   *  except id/ownerId/createdAt/updatedAt/tombstoned which are stamped here. */
+  async saveAttackChainRun(input: {
+    chatId: string;
+    inputText: string;
+    layers: string[];
+    layerParams: Array<Record<string, unknown>>;
+    finalSystemPrompt?: string;
+    executeEnabled: boolean;
+    results: AttackChainLayerTrace[];
+    finalOutput?: string;
+    tags?: string[];
+  }): Promise<AttackChainRunRow> {
+    const now = Date.now();
+    const base: AttackChainRunRow = {
+      id: ulid(),
+      ownerId: ownerId(),
+      chatId: input.chatId,
+      createdAt: now,
+      updatedAt: now,
+      input: input.inputText,
+      layers: [...input.layers],
+      layerParams: input.layerParams.map((p) => ({ ...p })),
+      finalSystemPrompt: input.finalSystemPrompt,
+      executeEnabled: input.executeEnabled,
+      results: input.results,
+      finalOutput: input.finalOutput,
+      tags: input.tags ? [...input.tags] : []
+    };
+    const row: AttackChainRunRow = JSON.parse(JSON.stringify(base));
+    await db.attackChainRuns.put(row);
+    return row;
+  },
+
+  /** Most-recent-first list of non-tombstoned runs for a chat. Limit 50
+   *  by default — the UI further slices to 10 for the collapsible panel. */
+  async listAttackChainRuns(chatId: string, limit = 50): Promise<AttackChainRunRow[]> {
+    const all = await db.attackChainRuns
+      .where('[chatId+createdAt]')
+      .between([chatId, -Infinity], [chatId, Infinity])
+      .toArray();
+    return all
+      .filter((r) => r.ownerId === ownerId() && !r.tombstoned)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit);
+  },
+
+  /** Soft-delete (tombstone) a run. Keeps the row for later recovery /
+   *  dataset export; listAttackChainRuns filters it out. */
+  async deleteAttackChainRun(id: string): Promise<void> {
+    const existing = await db.attackChainRuns.get(id);
+    if (!existing || existing.ownerId !== ownerId()) return;
+    await db.attackChainRuns.put(
+      JSON.parse(JSON.stringify({ ...existing, tombstoned: true, updatedAt: Date.now() }))
+    );
   }
 };

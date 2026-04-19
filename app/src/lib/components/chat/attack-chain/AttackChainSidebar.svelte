@@ -1,19 +1,25 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { runChain, buildLayerPrompt } from '$lib/chat/attack-chain';
   import type { LayerResultRow } from '$lib/chat/attack-chain';
-  import type { ChatRow } from '$lib/chat/types';
+  import type { ChatRow, AttackChainRunRow, AttackChainConfig } from '$lib/chat/types';
+  import { repo } from '$lib/chat/repo';
+  import { customPresets } from '$lib/chat/customPresets.svelte';
   import { chat as gatewayChat } from '$lib/ai/gateway';
   import { injectAttackChainTurn } from '$lib/chat/dispatch';
   import type { ChatMessage } from '$lib/ai/types';
   import LayerPicker from './LayerPicker.svelte';
   import LayerResult from './LayerResult.svelte';
   import PresetPicker from './PresetPicker.svelte';
+  import HistoryPanel from './HistoryPanel.svelte';
   import Plus from 'lucide-svelte/icons/plus';
   import Play from 'lucide-svelte/icons/play';
   import Square from 'lucide-svelte/icons/square';
   import ArrowRight from 'lucide-svelte/icons/arrow-right';
   import Eye from 'lucide-svelte/icons/eye';
   import ChevronRight from 'lucide-svelte/icons/chevron-right';
+  import Save from 'lucide-svelte/icons/save';
+  import Check from 'lucide-svelte/icons/check';
   import X from 'lucide-svelte/icons/x';
 
   type Props = {
@@ -28,20 +34,115 @@
 
   const MAX_LAYERS = 4;
 
-  let input = $state('');
-  let layers = $state<string[]>(['', '']);
-  let layerParams = $state<Array<Record<string, unknown>>>([{}, {}]);
-  let layerOutputEdits = $state<Array<string | null>>([null, null]);
+  // Hydrate initial state from the persisted chat.settings.attackChainConfig.
+  // If absent (new chat or pre-persistence chat), fall back to defaults.
+  const persisted = chat.settings.attackChainConfig;
+
+  let input = $state(persisted?.input ?? '');
+  let layers = $state<string[]>(persisted?.layers ? [...persisted.layers] : ['', '']);
+  let layerParams = $state<Array<Record<string, unknown>>>(
+    persisted?.layerParams ? persisted.layerParams.map((p) => ({ ...p })) : [{}, {}]
+  );
+  let layerOutputEdits = $state<Array<string | null>>(
+    persisted?.layerOutputEdits ? [...persisted.layerOutputEdits] : [null, null]
+  );
   let results = $state<LayerResultRow[]>([]);
   let running = $state(false);
   let ctrl = $state<AbortController | null>(null);
   let previewText = $state<string | null>(null);
-  let executeEnabled = $state(true);
-  let finalSystemPrompt = $state('');
+  let executeEnabled = $state(persisted?.executeEnabled ?? true);
+  let finalSystemPrompt = $state(persisted?.finalSystemPrompt ?? '');
   let finalSystemPromptOpen = $state(false);
   // Auto-retry: on refusal detection, swap to a curated fallback technique
   // and re-run that layer before moving on. See attack-chain.ts FALLBACK_ORDER.
-  let autoRetryEnabled = $state(true);
+  let autoRetryEnabled = $state(persisted?.autoRetryEnabled ?? true);
+
+  // Run history for this chat — populated on mount and refreshed on each
+  // successful run / delete.
+  let history = $state<AttackChainRunRow[]>([]);
+
+  // Transient "Inserted" badge — shown for ~1.5s after a send-back button
+  // fires. We keep the drawer open so the user can tweak + re-run.
+  let insertedFlash = $state<'assistant' | 'composer' | null>(null);
+  let insertedFlashTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Save-as-preset inline editor state.
+  let savePresetOpen = $state(false);
+  let savePresetName = $state('');
+  let savedPresetFlash = $state(false);
+  let savedPresetFlashTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Debounced persistence — 500ms after the last state change we mirror the
+  // drawer config onto chat.settings.attackChainConfig so reopening the
+  // drawer rehydrates from the same spot. Initial hydration already ran
+  // above, so we skip the first effect invocation to avoid a no-op write.
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let hydratedOnce = false;
+
+  onMount(async () => {
+    try {
+      history = await repo.listAttackChainRuns(chat.id);
+    } catch (err) {
+      console.error('[attack-chain] history load failed:', err);
+    }
+  });
+
+  $effect(() => {
+    // Touch every persisted field so Svelte tracks all of them.
+    void input;
+    void layers;
+    void layerParams;
+    void layerOutputEdits;
+    void executeEnabled;
+    void finalSystemPrompt;
+    void autoRetryEnabled;
+
+    if (!hydratedOnce) {
+      hydratedOnce = true;
+      return;
+    }
+
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      void persistConfig();
+    }, 500);
+
+    return () => {
+      if (persistTimer) clearTimeout(persistTimer);
+    };
+  });
+
+  async function persistConfig() {
+    const config: AttackChainConfig = {
+      input,
+      layers: [...layers],
+      layerParams: layerParams.map((p) => ({ ...p })),
+      layerOutputEdits: [...layerOutputEdits],
+      executeEnabled,
+      finalSystemPrompt,
+      autoRetryEnabled
+    };
+    try {
+      // Re-read from DB so we merge against the latest settings (other
+      // chat settings — mode, sampling knobs — may have changed between
+      // the debounce tick and this write).
+      const fresh = await repo.getChat(chat.id);
+      const base = fresh?.settings ?? chat.settings;
+      await repo.updateChat(chat.id, {
+        settings: { ...base, attackChainConfig: config }
+      });
+    } catch (err) {
+      console.error('[attack-chain] persist failed:', err);
+    }
+  }
+
+  function flashInserted(which: 'assistant' | 'composer') {
+    if (insertedFlashTimer) clearTimeout(insertedFlashTimer);
+    insertedFlash = which;
+    insertedFlashTimer = setTimeout(() => {
+      insertedFlash = null;
+    }, 1500);
+  }
 
   const canRun = $derived(
     input.trim().length > 0 &&
@@ -91,11 +192,60 @@
     layerParams = layerParams.map((v, idx) => (idx === i ? p : v));
   }
 
-  function applyPreset(ids: string[]) {
+  function applyPreset(ids: string[], params?: Array<Record<string, unknown>>) {
     layers = ids.slice(0, MAX_LAYERS);
-    layerParams = layers.map(() => ({}));
+    layerParams = layers.map((_, i) => ({ ...(params?.[i] ?? {}) }));
     layerOutputEdits = layers.map(() => null);
     results = [];
+  }
+
+  function saveCurrentAsPreset() {
+    const trimmed = savePresetName.trim();
+    if (trimmed.length === 0) return;
+    const activeLayers = layers.filter((id) => id.trim().length > 0);
+    if (activeLayers.length < 2) return;
+    // Pair each saved layer with its params, trimming to the active layers.
+    const activeParams: Array<Record<string, unknown>> = [];
+    for (let i = 0; i < layers.length; i++) {
+      if (layers[i].trim().length === 0) continue;
+      activeParams.push({ ...(layerParams[i] ?? {}) });
+    }
+    customPresets.save({
+      name: trimmed,
+      layers: activeLayers,
+      layerParams: activeParams
+    });
+    savePresetName = '';
+    savePresetOpen = false;
+    if (savedPresetFlashTimer) clearTimeout(savedPresetFlashTimer);
+    savedPresetFlash = true;
+    savedPresetFlashTimer = setTimeout(() => { savedPresetFlash = false; }, 1500);
+  }
+
+  function cancelSavePreset() {
+    savePresetOpen = false;
+    savePresetName = '';
+  }
+
+  async function restoreRun(run: AttackChainRunRow) {
+    input = run.input;
+    layers = [...run.layers];
+    layerParams = run.layerParams.map((p) => ({ ...p }));
+    layerOutputEdits = run.layers.map(() => null);
+    finalSystemPrompt = run.finalSystemPrompt ?? '';
+    executeEnabled = run.executeEnabled;
+    results = [];
+    // Persist immediately so the restore is durable even before the debounce.
+    await persistConfig();
+  }
+
+  async function deleteRun(id: string) {
+    try {
+      await repo.deleteAttackChainRun(id);
+      history = history.filter((r) => r.id !== id);
+    } catch (err) {
+      console.error('[attack-chain] delete run failed:', err);
+    }
   }
 
   function ctxFor(signal: AbortSignal) {
@@ -155,6 +305,49 @@
     } finally {
       running = false;
       ctrl = null;
+      // Persist the run to history so the user can recover prior chains.
+      // We only save if the user actually produced results (no rows means
+      // they cancelled before anything yielded, not worth a history row).
+      if (results.length > 0 && !abort.signal.aborted) {
+        void persistRunToHistory();
+      } else if (results.length > 0) {
+        // Cancelled mid-chain still produced results — still persist so the
+        // user can come back to it; tag with "cancelled" via finalOutput=null.
+        void persistRunToHistory();
+      }
+    }
+  }
+
+  async function persistRunToHistory() {
+    try {
+      const executed = results.find((r) => r.techniqueId === '__execute__' && !r.error) ?? null;
+      const nonExec = results.filter((r) => r.techniqueId !== '__execute__' && !r.error);
+      const lastMutated = nonExec.length > 0 ? nonExec[nonExec.length - 1].output : undefined;
+      const finalOutput = executed?.output ?? lastMutated;
+      const row = await repo.saveAttackChainRun({
+        chatId: chat.id,
+        inputText: input,
+        layers: [...layers],
+        layerParams: layerParams.map((p) => ({ ...p })),
+        finalSystemPrompt: finalSystemPrompt.trim() || undefined,
+        executeEnabled,
+        results: results.map((r) => ({
+          layerIndex: r.layerIndex,
+          attempt: r.attempt,
+          techniqueId: r.techniqueId,
+          techniqueName: r.techniqueName,
+          input: r.input,
+          output: r.output,
+          startedAt: r.startedAt,
+          durationMs: r.durationMs,
+          error: r.error,
+          finalPrompt: r.finalPrompt
+        })),
+        finalOutput
+      });
+      history = [row, ...history].slice(0, 50);
+    } catch (err) {
+      console.error('[attack-chain] persistRunToHistory failed:', err);
     }
   }
 
@@ -256,6 +449,9 @@
     <!-- Presets -->
     <PresetPicker isDirty={chainDirty} onApply={applyPreset} />
 
+    <!-- History -->
+    <HistoryPanel runs={history} onRestore={restoreRun} onDelete={deleteRun} />
+
     <!-- Input -->
     <div class="flex flex-col gap-1">
       <label for="chain-input" class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -285,14 +481,55 @@
           onRemove={() => removeLayer(i)}
         />
       {/each}
-      <button
-        type="button"
-        onclick={addLayer}
-        disabled={layers.length >= MAX_LAYERS}
-        class="flex items-center gap-1.5 self-start rounded-md border border-dashed border-border/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:pointer-events-none disabled:opacity-40"
-      >
-        <Plus size={12} /> Add layer
-      </button>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onclick={addLayer}
+          disabled={layers.length >= MAX_LAYERS}
+          class="flex items-center gap-1.5 self-start rounded-md border border-dashed border-border/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:pointer-events-none disabled:opacity-40"
+        >
+          <Plus size={12} /> Add layer
+        </button>
+        <button
+          type="button"
+          onclick={() => { savePresetOpen = !savePresetOpen; }}
+          disabled={layers.filter((id) => id.trim().length > 0).length < 2}
+          class="flex items-center gap-1.5 self-start rounded-md border border-dashed border-border/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:pointer-events-none disabled:opacity-40"
+          title="Save this chain as a reusable custom preset"
+        >
+          <Save size={12} />
+          {savedPresetFlash ? 'Saved!' : 'Save as preset'}
+        </button>
+      </div>
+      {#if savePresetOpen}
+        <div class="flex flex-wrap items-center gap-1.5 rounded-md border border-border/40 bg-background/60 px-2 py-1.5">
+          <input
+            type="text"
+            bind:value={savePresetName}
+            placeholder="Preset name"
+            onkeydown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); saveCurrentAsPreset(); }
+              else if (e.key === 'Escape') { e.preventDefault(); cancelSavePreset(); }
+            }}
+            class="min-w-0 flex-1 rounded border border-border/50 bg-background px-2 py-1 text-xs outline-none focus:border-primary/60"
+          />
+          <button
+            type="button"
+            onclick={saveCurrentAsPreset}
+            disabled={savePresetName.trim().length === 0}
+            class="rounded-md bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-40"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onclick={cancelSavePreset}
+            class="rounded-md border border-border/50 px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground"
+          >
+            Cancel
+          </button>
+        </div>
+      {/if}
     </div>
 
     <!-- Execute + auto-retry toggles -->
@@ -385,22 +622,30 @@
       {#if executedRow}
         <button
           type="button"
-          onclick={() => {
-            void injectAssistantReply(executedRow.output);
-            onClose();
+          onclick={async () => {
+            await injectAssistantReply(executedRow.output);
+            flashInserted('assistant');
           }}
           class="flex items-center justify-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
         >
-          <ArrowRight size={12} /> Insert model response as assistant reply
+          {#if insertedFlash === 'assistant'}
+            <Check size={12} /> Inserted
+          {:else}
+            <ArrowRight size={12} /> Insert model response as assistant reply
+          {/if}
         </button>
       {/if}
       {#if mutatedOutput !== null}
         <button
           type="button"
-          onclick={() => { onInsertToComposer(mutatedOutput); onClose(); }}
+          onclick={() => { onInsertToComposer(mutatedOutput); flashInserted('composer'); }}
           class="flex items-center justify-center gap-1.5 rounded-md border border-border/50 px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
         >
-          <ArrowRight size={12} /> Insert mutated prompt into composer
+          {#if insertedFlash === 'composer'}
+            <Check size={12} /> Inserted
+          {:else}
+            <ArrowRight size={12} /> Insert mutated prompt into composer
+          {/if}
         </button>
       {/if}
     {/if}

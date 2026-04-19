@@ -1,5 +1,20 @@
 export type Role = 'user' | 'assistant' | 'system' | 'tool';
 
+/**
+ * Snapshot of an in-progress Attack Chain configuration, persisted on the
+ * parent chat row so the drawer state survives close / reopen / send-back
+ * actions. Results are NOT persisted here — those live in `attackChainRuns`.
+ */
+export interface AttackChainConfig {
+  input: string;
+  layers: string[];
+  layerParams: Array<Record<string, unknown>>;
+  layerOutputEdits: Array<string | null>;
+  executeEnabled: boolean;
+  finalSystemPrompt: string;
+  autoRetryEnabled: boolean;
+}
+
 export interface ChatSettings {
   systemPrompt: string;
   temperature: number;
@@ -14,6 +29,7 @@ export interface ChatSettings {
   enabledToolIds: string[];
   toolChoice: 'auto' | 'none' | 'required';
   maxToolCalls: number;
+  attackChainConfig?: AttackChainConfig;
 }
 
 export interface ChatRow {
@@ -115,6 +131,47 @@ export interface ToolStateRow {
   ownerId: string;
   state: unknown;
   updatedAt: number;
+}
+
+/**
+ * Trace row for one layer attempt in an Attack Chain run. Structured loosely
+ * so existing layer-result shapes serialize cleanly without transformation.
+ */
+export interface AttackChainLayerTrace {
+  layerIndex: number;
+  attempt?: number;
+  techniqueId: string;
+  techniqueName: string;
+  input: string;
+  output: string;
+  startedAt: number;
+  durationMs: number;
+  error?: string;
+  finalPrompt?: string;
+}
+
+/**
+ * Persisted row for one execution of an Attack Chain — seed input, chain
+ * config, full per-layer trace, and the final output (executed model
+ * response if the execute layer ran, else the last mutated prompt). Stored
+ * in the `attackChainRuns` Dexie table, indexed by chatId + createdAt so
+ * the drawer can show a per-chat history panel.
+ */
+export interface AttackChainRunRow {
+  id: string;
+  ownerId: string;
+  chatId: string;
+  createdAt: number;
+  updatedAt: number;
+  input: string;
+  layers: string[];
+  layerParams: Array<Record<string, unknown>>;
+  finalSystemPrompt?: string;
+  executeEnabled: boolean;
+  results: AttackChainLayerTrace[];
+  finalOutput?: string;
+  tags: string[];
+  tombstoned?: boolean;
 }
 
 export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
