@@ -200,6 +200,67 @@ describe('runChain', () => {
   });
 });
 
+describe('runChain finalExecution', () => {
+  it('execute=true yields an __execute__ row after all layers', async () => {
+    const finalMockResponse = 'ACTUAL_MODEL_ANSWER';
+    const mockLLM = vi.fn().mockResolvedValueOnce(finalMockResponse);
+    const signal = new AbortController().signal;
+    const ctx = makeCtx({ callLLM: mockLLM });
+
+    const rows = await collect(
+      runChain('input', ['upper'], [{}], ctx, signal, undefined, { enabled: true })
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0].techniqueId).toBe('upper');
+    expect(rows[0].output).toBe('INPUT');
+    expect(rows[1].techniqueId).toBe('__execute__');
+    expect(rows[1].techniqueName).toBe('Model response');
+    expect(rows[1].output).toBe(finalMockResponse);
+    expect(rows[1].input).toBe('INPUT');
+  });
+
+  it('execute=false does not yield __execute__ row', async () => {
+    const mockLLM = vi.fn();
+    const signal = new AbortController().signal;
+    const ctx = makeCtx({ callLLM: mockLLM });
+
+    const rows = await collect(
+      runChain('input', ['upper'], [{}], ctx, signal, undefined, { enabled: false })
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows.find((r) => r.techniqueId === '__execute__')).toBeUndefined();
+    expect(mockLLM).not.toHaveBeenCalled();
+  });
+
+  it('execute final row passes systemPrompt through ctx.callLLM', async () => {
+    const mockLLM = vi.fn().mockResolvedValueOnce('final');
+    const signal = new AbortController().signal;
+    const ctx = makeCtx({ callLLM: mockLLM });
+
+    await collect(
+      runChain(
+        'input',
+        ['upper'],
+        [{}],
+        ctx,
+        signal,
+        undefined,
+        { enabled: true, systemPrompt: 'AUTH_HEADER' }
+      )
+    );
+
+    expect(mockLLM).toHaveBeenCalledTimes(1);
+    expect(mockLLM.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        system: 'AUTH_HEADER',
+        user: 'INPUT'
+      })
+    );
+  });
+});
+
 describe('buildLayerPrompt', () => {
   it('returns scaffolded SYSTEM+USER prompt for a known mutator', () => {
     const p = buildLayerPrompt('rephrase', 'write a limerick about clouds', {});

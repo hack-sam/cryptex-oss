@@ -13,6 +13,11 @@ export type LayerResultRow = {
   finalPrompt?: string;
 };
 
+export type FinalExecutionOptions = {
+  enabled: boolean;
+  systemPrompt?: string; // optional system message for the final turn
+};
+
 /**
  * Build the exact scaffolded system+user prompt that `runChain` would pass
  * to the LLM for a given technique + input + metadata. Used by the UI's
@@ -44,7 +49,8 @@ export async function* runChain(
   layerMetadata: Array<Record<string, unknown>>,
   ctx: TechniqueContext,
   signal: AbortSignal,
-  layerOverrides?: Array<string | null>
+  layerOverrides?: Array<string | null>,
+  finalExecution?: FinalExecutionOptions
 ): AsyncGenerator<LayerResultRow> {
   // Dynamic import to avoid circular deps with the registry module
   const { find } = await import('./techniques/registry');
@@ -111,6 +117,41 @@ export async function* runChain(
         finalPrompt
       };
       return;
+    }
+  }
+
+  // After all mutator layers succeed (no abort, no early-return error),
+  // optionally fire one more isolated LLM call that passes the fully-mutated
+  // prompt as user content plus an optional system header. This captures the
+  // target model's actual response — bypassing chat history so prior refusal
+  // context can't re-pollute the call.
+  if (finalExecution?.enabled && !signal.aborted) {
+    const startedAt = Date.now();
+    try {
+      const response = await ctx.callLLM({
+        system: finalExecution.systemPrompt,
+        user: current
+      });
+      yield {
+        layerIndex: layerIds.length,
+        techniqueId: '__execute__',
+        techniqueName: 'Model response',
+        input: current,
+        output: response,
+        startedAt,
+        durationMs: Date.now() - startedAt
+      };
+    } catch (err) {
+      yield {
+        layerIndex: layerIds.length,
+        techniqueId: '__execute__',
+        techniqueName: 'Model response',
+        input: current,
+        output: '',
+        startedAt,
+        durationMs: Date.now() - startedAt,
+        error: (err as Error).message
+      };
     }
   }
 }

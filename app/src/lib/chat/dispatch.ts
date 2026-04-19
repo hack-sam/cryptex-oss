@@ -476,6 +476,25 @@ export async function sendTurn(
   hooks.onFinish?.(asstMsg);
 }
 
+/**
+ * Persist an assistant message directly into a chat without going through the
+ * composer/turn flow. Used by Attack Chain's "insert model response as
+ * assistant reply" action so the captured isolated-model response lands in
+ * the chat as if the assistant said it, without triggering a chat-history
+ * turn that would re-introduce prior refusal context.
+ */
+export async function injectAssistantMessage(
+  chatId: string,
+  content: string
+): Promise<MessageRow> {
+  return repo.saveMessage({
+    chatId,
+    role: 'assistant',
+    content,
+    tags: []
+  });
+}
+
 export async function forkChat(chat: ChatRow, fromMessageId: string): Promise<ChatRow> {
   const newChat = await repo.createChat({
     title: `${chat.title} (fork)`,

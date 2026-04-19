@@ -27,6 +27,7 @@
   let draft = $state('');
   let showPrompt = $state(false);
 
+  const isExecuted = $derived(row.techniqueId === '__execute__');
   const refusal = $derived(row.error ? { detected: false } : detectRefusal(row.output));
 
   async function copy() {
@@ -64,8 +65,14 @@
       <span class="shrink-0 text-[10px] font-semibold text-muted-foreground">
         Layer {row.layerIndex + 1}
       </span>
-      <span class="truncate text-xs font-medium text-foreground">{row.techniqueName}</span>
-      <code class="hidden shrink-0 text-[9px] text-muted-foreground sm:inline">{row.techniqueId}</code>
+      <span class={isExecuted
+        ? 'truncate rounded px-1.5 py-0.5 text-[10px] font-semibold bg-primary/15 text-primary'
+        : 'truncate text-xs font-medium text-foreground'}>
+        {row.techniqueName}
+      </span>
+      {#if !isExecuted}
+        <code class="hidden shrink-0 text-[9px] text-muted-foreground sm:inline">{row.techniqueId}</code>
+      {/if}
     </div>
     <div class="flex shrink-0 items-center gap-2">
       <span class="text-[10px] text-muted-foreground">{formatTime(row.startedAt)} · {formatMs(row.durationMs)}</span>

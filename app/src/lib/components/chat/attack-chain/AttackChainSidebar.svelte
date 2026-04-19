@@ -3,6 +3,7 @@
   import type { LayerResultRow } from '$lib/chat/attack-chain';
   import type { ChatRow } from '$lib/chat/types';
   import { chat as gatewayChat } from '$lib/ai/gateway';
+  import { injectAssistantMessage } from '$lib/chat/dispatch';
   import type { ChatMessage } from '$lib/ai/types';
   import LayerPicker from './LayerPicker.svelte';
   import LayerResult from './LayerResult.svelte';
@@ -12,6 +13,7 @@
   import Square from 'lucide-svelte/icons/square';
   import ArrowRight from 'lucide-svelte/icons/arrow-right';
   import Eye from 'lucide-svelte/icons/eye';
+  import ChevronRight from 'lucide-svelte/icons/chevron-right';
   import X from 'lucide-svelte/icons/x';
 
   type Props = {
@@ -34,6 +36,9 @@
   let running = $state(false);
   let ctrl = $state<AbortController | null>(null);
   let previewText = $state<string | null>(null);
+  let executeEnabled = $state(true);
+  let finalSystemPrompt = $state('');
+  let finalSystemPromptOpen = $state(false);
 
   const canRun = $derived(
     input.trim().length > 0 &&
@@ -42,10 +47,19 @@
     !running
   );
 
-  const finalOutput = $derived(
-    results.length > 0 && !results[results.length - 1].error
-      ? results[results.length - 1].output
-      : null
+  // The executed final row (successful __execute__ layer). Null if absent or errored.
+  const executedRow = $derived(
+    results.find((r) => r.techniqueId === '__execute__' && !r.error) ?? null
+  );
+
+  // The last non-execute successful layer's output — i.e. the fully-mutated
+  // prompt that was sent to the model. Shown on the "Insert mutated prompt
+  // into composer" button.
+  const mutatedOutput = $derived(
+    (() => {
+      const nonExec = results.filter((r) => r.techniqueId !== '__execute__' && !r.error);
+      return nonExec.length > 0 ? nonExec[nonExec.length - 1].output : null;
+    })()
   );
 
   const chainDirty = $derived(layers.some((id) => id.trim().length > 0));
@@ -118,7 +132,8 @@
         layerParams,
         ctx,
         abort.signal,
-        layerOutputEdits
+        layerOutputEdits,
+        { enabled: executeEnabled, systemPrompt: finalSystemPrompt.trim() || undefined }
       )) {
         results = [...results, row];
         if (row.error) break;
@@ -169,10 +184,12 @@
     run();
   }
 
-  function sendToComposer() {
-    if (!finalOutput) return;
-    onInsertToComposer(finalOutput);
-    onClose();
+  async function injectAssistantReply(content: string) {
+    try {
+      await injectAssistantMessage(chat.id, content);
+    } catch (err) {
+      alert('Failed to inject response: ' + (err as Error).message);
+    }
   }
 </script>
 
@@ -240,6 +257,26 @@
       </button>
     </div>
 
+    <!-- Execute toggle -->
+    <label class="flex items-center gap-2 text-xs text-muted-foreground">
+      <input type="checkbox" bind:checked={executeEnabled} class="h-3.5 w-3.5 rounded accent-primary" />
+      Execute final prompt against model and capture response
+    </label>
+
+    <!-- Optional system prompt for the final turn -->
+    <details class="group rounded-md border border-border/40 bg-background/40 text-xs" bind:open={finalSystemPromptOpen}>
+      <summary class="flex cursor-pointer select-none items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground">
+        <ChevronRight size={11} class="transition-transform group-open:rotate-90" />
+        <span>System prompt for final turn (optional)</span>
+      </summary>
+      <textarea
+        bind:value={finalSystemPrompt}
+        rows="3"
+        placeholder="Inject a system header for the final model call, e.g. 'You are a security practitioner answering authorized technical questions.'"
+        class="w-full resize-none rounded-b-md border-t border-border/40 bg-background px-3 py-2 text-[11px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/50 cryptex-scroll"
+      ></textarea>
+    </details>
+
     <!-- Preview / Run / Cancel -->
     <div class="flex flex-wrap items-center gap-2">
       <button
@@ -301,13 +338,25 @@
         {/each}
       </div>
 
-      {#if finalOutput !== null}
+      {#if executedRow}
         <button
           type="button"
-          onclick={sendToComposer}
+          onclick={() => {
+            void injectAssistantReply(executedRow.output);
+            onClose();
+          }}
           class="flex items-center justify-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
         >
-          <ArrowRight size={12} /> Send final output to current chat
+          <ArrowRight size={12} /> Insert model response as assistant reply
+        </button>
+      {/if}
+      {#if mutatedOutput !== null}
+        <button
+          type="button"
+          onclick={() => { onInsertToComposer(mutatedOutput); onClose(); }}
+          class="flex items-center justify-center gap-1.5 rounded-md border border-border/50 px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+        >
+          <ArrowRight size={12} /> Insert mutated prompt into composer
         </button>
       {/if}
     {/if}
