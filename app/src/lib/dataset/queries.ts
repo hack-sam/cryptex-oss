@@ -27,24 +27,18 @@ export interface DatasetFilters {
   modeApplied?: string | null;
   /** Filter by dataset split */
   split?: 'train' | 'val';
+  /** When true, only include rows where truncated===true OR finishReason==='length' */
+  truncatedOnly?: boolean;
   /** Owner filter — when provided, only rows whose ownerId matches */
   ownerId?: string;
 }
 
 /**
- * Read all messages from Dexie and apply DatasetFilters in-memory.
- * Returns only non-tombstoned messages.
+ * Pure filter helper — applies a DatasetFilters set to an already-fetched
+ * MessageRow array. Exported so queryMessages can reuse the same predicate
+ * and so unit tests can verify filter behavior without a live Dexie DB.
  */
-export async function queryMessages(filters: DatasetFilters = {}): Promise<MessageRow[]> {
-  // Use indexed query when possible to narrow the scan, then filter in memory
-  let rows: MessageRow[];
-
-  if (filters.ownerId) {
-    rows = await db.messages.where('ownerId').equals(filters.ownerId).toArray();
-  } else {
-    rows = await db.messages.toArray();
-  }
-
+export function filterMessages(rows: MessageRow[], filters: DatasetFilters = {}): MessageRow[] {
   return rows.filter((m) => {
     if (m.tombstoned) return false;
 
@@ -96,8 +90,30 @@ export async function queryMessages(filters: DatasetFilters = {}): Promise<Messa
       if (m.split !== filters.split) return false;
     }
 
+    if (filters.truncatedOnly) {
+      const isTruncated = m.truncated === true || m.finishReason === 'length';
+      if (!isTruncated) return false;
+    }
+
     return true;
   });
+}
+
+/**
+ * Read all messages from Dexie and apply DatasetFilters in-memory.
+ * Returns only non-tombstoned messages.
+ */
+export async function queryMessages(filters: DatasetFilters = {}): Promise<MessageRow[]> {
+  // Use indexed query when possible to narrow the scan, then filter in memory
+  let rows: MessageRow[];
+
+  if (filters.ownerId) {
+    rows = await db.messages.where('ownerId').equals(filters.ownerId).toArray();
+  } else {
+    rows = await db.messages.toArray();
+  }
+
+  return filterMessages(rows, filters);
 }
 
 /**

@@ -49,6 +49,23 @@
     return () => sub.unsubscribe();
   });
 
+  // Distinct modeApplied values in the *unfiltered* owner-scoped dataset.
+  // Used to populate the Mode filter dropdown with only values that exist.
+  let availableModes = $state<string[]>([]);
+  $effect(() => {
+    const ownerId = session.currentUser.id;
+    const sub = liveQuery(() => queryMessages({ ownerId })).subscribe({
+      next: (list) => {
+        const set = new Set<string>();
+        for (const r of list) {
+          if (typeof r.modeApplied === 'string' && r.modeApplied) set.add(r.modeApplied);
+        }
+        availableModes = Array.from(set).sort();
+      }
+    });
+    return () => sub.unsubscribe();
+  });
+
   function handleFiltersChange(f: Filters) {
     filters = f;
     selectedIds = new Set();
@@ -112,7 +129,7 @@
   <!-- On md+ screens all 3 columns share the same viewport-relative height with internal scroll -->
   <div class="grid gap-3 grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)_320px] items-stretch md:[height:calc(100vh-14rem)]">
     <!-- Filter rail -->
-    <DatasetFiltersPanel {filters} onchange={handleFiltersChange} />
+    <DatasetFiltersPanel {filters} {availableModes} onchange={handleFiltersChange} />
 
     <!-- Table column: scrollable table + pinned pagination footer -->
     <div class="flex h-full flex-col overflow-hidden rounded-lg border border-border/30 bg-card/30 min-w-0">

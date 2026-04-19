@@ -108,6 +108,8 @@ export async function sendTurn(
         temperature: chat.settings.temperature,
         topP: chat.settings.topP,
         maxTokens: chat.settings.maxTokens,
+        frequencyPenalty: chat.settings.frequencyPenalty,
+        presencePenalty: chat.settings.presencePenalty,
         reasoningEffort: chat.settings.reasoningEffort,
         thinkingLevel: chat.settings.thinkingLevel
       },
@@ -243,6 +245,8 @@ export async function sendTurn(
             temperature: chat.settings.temperature,
             topP: chat.settings.topP,
             maxTokens: chat.settings.maxTokens,
+            frequencyPenalty: chat.settings.frequencyPenalty,
+            presencePenalty: chat.settings.presencePenalty,
             reasoningEffort: chat.settings.reasoningEffort,
             thinkingLevel: chat.settings.thinkingLevel
           },
@@ -423,7 +427,9 @@ export async function sendTurn(
       }
     }
   } catch (err) {
-    // Fix 3: preserve partial content on abort
+    // Fix 3: preserve partial content on abort.
+    // The response is considered truncated when no finish event was observed
+    // before the abort — i.e. the stream ended mid-generation.
     if ((err as Error)?.name === 'AbortError' && accumulatedText) {
       const asstMsg = await repo.saveMessage({
         chatId: chat.id,
@@ -431,18 +437,21 @@ export async function sendTurn(
         parentId: userMsg.id,
         content: accumulatedText,
         reasoning: accumulatedReasoning || undefined,
+        toolCalls: allToolCallLogs.length ? allToolCallLogs : undefined,
         modelRequested: chat.modelQualifiedId,
         systemPromptSnapshot: chat.settings.systemPrompt,
         samplingParams: {
           temperature: chat.settings.temperature,
           topP: chat.settings.topP,
           maxTokens: chat.settings.maxTokens,
+          frequencyPenalty: chat.settings.frequencyPenalty,
+          presencePenalty: chat.settings.presencePenalty,
           reasoningEffort: chat.settings.reasoningEffort,
           thinkingLevel: chat.settings.thinkingLevel
         },
         tokenUsage: finalUsage,
         finishReason: 'aborted',
-        truncated: false,
+        truncated: !finalFinishReason,
         latencyMs: Date.now() - startedAt,
         tags: []
       });
@@ -467,6 +476,8 @@ export async function sendTurn(
       temperature: chat.settings.temperature,
       topP: chat.settings.topP,
       maxTokens: chat.settings.maxTokens,
+      frequencyPenalty: chat.settings.frequencyPenalty,
+      presencePenalty: chat.settings.presencePenalty,
       reasoningEffort: chat.settings.reasoningEffort,
       thinkingLevel: chat.settings.thinkingLevel
     },
@@ -567,6 +578,8 @@ export async function continueAssistantMessage(
       temperature: chat.settings.temperature,
       topP: chat.settings.topP,
       maxTokens: chat.settings.maxTokens,
+      frequencyPenalty: chat.settings.frequencyPenalty,
+      presencePenalty: chat.settings.presencePenalty,
       reasoningEffort: chat.settings.reasoningEffort,
       thinkingLevel: chat.settings.thinkingLevel
     },
