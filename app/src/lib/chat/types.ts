@@ -34,7 +34,7 @@ export interface ChatRow {
 
 export interface ToolCallLog {
   toolCallId: string;
-  source: 'transformer' | 'slash' | 'mcp';
+  source: 'transformer' | 'slash' | 'mcp' | 'attack-chain';
   toolName: string;
   input: unknown;
   output: unknown;

@@ -495,6 +495,71 @@ export async function injectAssistantMessage(
   });
 }
 
+/**
+ * Attack Chain run — persisted as a user/assistant pair with full per-layer
+ * trace so the Dataset Inspector can surface attack-chain sessions alongside
+ * normal chat turns. Every layer attempt (primary + refusal-retry fallbacks)
+ * lands in `toolCalls` with `source: 'attack-chain'` so they're
+ * distinguishable from MCP / transformer / slash tool calls.
+ *
+ * The user message stores the raw input the user typed AND the fully-mutated
+ * prompt that was ultimately sent to the model (as `content`). The assistant
+ * message stores the model's actual response.
+ */
+export async function injectAttackChainTurn(
+  chatId: string,
+  params: {
+    input: string;
+    mutatedPrompt: string;
+    modelResponse: string;
+    finalSystemPrompt?: string;
+    modelId?: string;
+    layers: Array<{
+      layerIndex: number;
+      attempt: number;
+      techniqueId: string;
+      techniqueName: string;
+      input: string;
+      output: string;
+      error?: string;
+      durationMs: number;
+    }>;
+  }
+): Promise<{ userMsg: MessageRow; assistantMsg: MessageRow }> {
+  const toolCalls: ToolCallLog[] = params.layers.map((l) => ({
+    toolCallId: `layer-${l.layerIndex}-${l.attempt}-${l.techniqueId}`,
+    source: 'attack-chain' as const,
+    toolName: l.techniqueName,
+    input: { layerIndex: l.layerIndex, attempt: l.attempt, techniqueId: l.techniqueId, text: l.input },
+    output: l.output,
+    errorMessage: l.error,
+    durationMs: l.durationMs
+  }));
+
+  const userMsg = await repo.saveMessage({
+    chatId,
+    role: 'user',
+    content: params.mutatedPrompt,
+    contentRaw: params.input,
+    modeApplied: '__attack_chain__',
+    toolCalls,
+    systemPromptSnapshot: params.finalSystemPrompt,
+    modelRequested: params.modelId,
+    tags: ['attack-chain']
+  });
+
+  const assistantMsg = await repo.saveMessage({
+    chatId,
+    role: 'assistant',
+    content: params.modelResponse,
+    parentId: userMsg.id,
+    modelRequested: params.modelId,
+    tags: ['attack-chain']
+  });
+
+  return { userMsg, assistantMsg };
+}
+
 export async function forkChat(chat: ChatRow, fromMessageId: string): Promise<ChatRow> {
   const newChat = await repo.createChat({
     title: `${chat.title} (fork)`,

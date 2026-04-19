@@ -3,7 +3,7 @@
   import type { LayerResultRow } from '$lib/chat/attack-chain';
   import type { ChatRow } from '$lib/chat/types';
   import { chat as gatewayChat } from '$lib/ai/gateway';
-  import { injectAssistantMessage } from '$lib/chat/dispatch';
+  import { injectAttackChainTurn } from '$lib/chat/dispatch';
   import type { ChatMessage } from '$lib/ai/types';
   import LayerPicker from './LayerPicker.svelte';
   import LayerResult from './LayerResult.svelte';
@@ -100,6 +100,12 @@
 
   function ctxFor(signal: AbortSignal) {
     const modelId = chat.modelQualifiedId;
+    // Explicit max_tokens so providers (especially OpenRouter-routed ones
+    // that default to ~512 when unset) don't silently truncate mutator
+    // rewrites or the final execute turn mid-response. Users can raise this
+    // via chat.settings.maxTokens; 4096 is a safe floor that every modern
+    // model accepts without rejection.
+    const maxTokens = chat.settings.maxTokens ?? 4096;
     return {
       model: modelId,
       callLLM: async (req: { system?: string; user: string; temperature?: number }) => {
@@ -110,6 +116,7 @@
           model: modelId,
           messages: msgs,
           temperature: req.temperature,
+          max_tokens: maxTokens,
           signal
         });
         return resp.content;
@@ -192,8 +199,32 @@
   }
 
   async function injectAssistantReply(content: string) {
+    // Persist the attack-chain run as a user+assistant pair so the Dataset
+    // Inspector can surface it. The user message carries the raw typed
+    // input AND the fully-mutated prompt; toolCalls stores per-layer
+    // trace (primary + refusal-retry attempts) with source='attack-chain'.
+    const mutated = mutatedOutput ?? content;
+    const layerTrace = results
+      .filter((r) => r.techniqueId !== '__execute__')
+      .map((r) => ({
+        layerIndex: r.layerIndex,
+        attempt: r.attempt ?? 0,
+        techniqueId: r.techniqueId,
+        techniqueName: r.techniqueName,
+        input: r.input,
+        output: r.output,
+        error: r.error,
+        durationMs: r.durationMs
+      }));
     try {
-      await injectAssistantMessage(chat.id, content);
+      await injectAttackChainTurn(chat.id, {
+        input,
+        mutatedPrompt: mutated,
+        modelResponse: content,
+        finalSystemPrompt: finalSystemPrompt.trim() || undefined,
+        modelId: chat.modelQualifiedId,
+        layers: layerTrace
+      });
     } catch (err) {
       alert('Failed to inject response: ' + (err as Error).message);
     }
