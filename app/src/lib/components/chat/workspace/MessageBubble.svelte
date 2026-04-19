@@ -3,6 +3,8 @@
   import ReasoningBlock from './ReasoningBlock.svelte';
   import ToolCallCard from './ToolCallCard.svelte';
   import CodeBlock from './CodeBlock.svelte';
+  import SlashCommandBlock from './SlashCommandBlock.svelte';
+  import { find as findTechnique } from '$lib/chat/techniques/registry';
   import { forkChat } from '$lib/chat/dispatch';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
@@ -75,12 +77,28 @@
   const isTool      = $derived(message.role === 'tool');
   const isSystem    = $derived(message.role === 'system');
 
-  // Slash mutator technique ids + btw. Composer modes (creative/intelligent/adaptive) are excluded
-  // so that mode-wrapped messages don't show a spurious collapsible.
-  const SLASH_MUTATORS = new Set([
-    'rephrase', 'obfuscate', 'roleplay', 'multilingual',
-    'expand', 'compress', 'metaphor', 'fragment', 'custom', 'btw'
-  ]);
+  // Modes that wrap messages without producing a slash-style mutation preview.
+  // Any other modeApplied value that is a registered technique OR 'btw' renders
+  // via SlashCommandBlock below.
+  const MODE_ONLY = new Set(['creative', 'intelligent', 'adaptive']);
+
+  const slashTechnique = $derived(
+    message.role === 'user' && message.modeApplied && !MODE_ONLY.has(message.modeApplied)
+      ? findTechnique(message.modeApplied)
+      : undefined
+  );
+
+  const slashTitle = $derived(
+    slashTechnique?.name ?? (message.modeApplied === 'btw' ? 'Side question' : message.modeApplied ?? '')
+  );
+
+  const showSlashBlock = $derived(
+    message.role === 'user' &&
+    !!message.modeApplied &&
+    !MODE_ONLY.has(message.modeApplied) &&
+    !!message.contentRaw &&
+    message.contentRaw !== message.content
+  );
 </script>
 
 <div class="chat-bubble-enter mb-2.5 flex items-start gap-2.5 {isUser ? 'flex-row-reverse' : 'flex-row'}">
@@ -168,8 +186,8 @@
     <div class="prose prose-sm dark:prose-invert max-w-none min-w-0 leading-relaxed text-foreground">
       <Streamdown content={message.content} components={{ code: CodeBlock }} />
     </div>
-  {:else if isUser && message.modeApplied && SLASH_MUTATORS.has(message.modeApplied) && message.contentRaw && message.contentRaw !== message.content}
-    <!-- Slash mutator: show original slash command + collapsible with the mutated result -->
+  {:else if showSlashBlock}
+    <!-- Slash mutator: unified collapsible preview for every slash technique -->
     {#if attachments.length > 0}
       <div class="mb-2 flex flex-wrap gap-1.5">
         {#each attachments as a (a.id)}
@@ -179,16 +197,12 @@
         {/each}
       </div>
     {/if}
-    <p class="whitespace-pre-wrap leading-relaxed">{message.contentRaw}</p>
-    <details class="group mt-2 rounded-md border border-border/40 bg-muted/20 text-xs">
-      <summary class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground select-none">
-        <ChevronRight size={11} class="transition-transform group-open:rotate-90" />
-        <span>Mutated via /{message.modeApplied}</span>
-      </summary>
-      <div class="max-h-60 overflow-y-auto cryptex-scroll border-t border-border/40 px-3 py-2">
-        <pre class="whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-muted-foreground">{message.content}</pre>
-      </div>
-    </details>
+    <SlashCommandBlock
+      title={slashTitle}
+      slashId={message.modeApplied!}
+      rawInput={message.contentRaw!}
+      rewrite={message.content}
+    />
   {:else}
     <!-- Plain user message OR mode-applied (show contentRaw if present, else content) -->
     {#if attachments.length > 0}

@@ -9,7 +9,8 @@
   };
   let { isDirty, onApply }: Props = $props();
 
-  // Ephemeral selection — Combobox shows the picked preset briefly then clears.
+  // Keep the last-applied preset persistent so the Combobox trigger label
+  // reflects which preset is currently active.
   let picked = $state<string>('');
 
   const options = $derived<ComboboxOption[]>(
@@ -31,8 +32,6 @@
     }
     onApply([...preset.layers]);
     picked = id;
-    // Clear selection after a tick so the same preset can be re-applied
-    queueMicrotask(() => { picked = ''; });
   }
 </script>
 
