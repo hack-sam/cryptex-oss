@@ -40,6 +40,38 @@
   const hasOpenRouter = $derived(listProviders().some((p) => p.id === 'openrouter'));
   const hasAnthropic = $derived(listProviders().some((p) => p.id === 'anthropic'));
 
+  async function saveWithoutVerify() {
+    // Bail out of the verify path and persist the provider as-is. Used when
+    // the probe fails with a transient network / CORS-looking error but the
+    // user knows the provider works (e.g. they just tested it elsewhere).
+    verifyError = null;
+    if (chosen === 'openrouter') {
+      const record: Extract<ProviderRecord, { id: 'openrouter' }> = { id: 'openrouter', apiKey: apiKey.trim(), enabled: true };
+      if (hasOpenRouter) updateProvider('openrouter', { apiKey: apiKey.trim() });
+      else addProvider(record);
+    } else if (chosen === 'anthropic') {
+      const record: Extract<ProviderRecord, { id: 'anthropic' }> = { id: 'anthropic', apiKey: apiKey.trim(), enabled: true };
+      if (hasAnthropic) updateProvider('anthropic', { apiKey: apiKey.trim() });
+      else addProvider(record);
+    } else if (chosen === 'custom-preset') {
+      const preset = OPENAI_COMPAT_PRESETS.find((p) => p.id === chosenPresetId)!;
+      const isCustom = preset.id === 'custom';
+      const effectiveTestModel = isCustom ? testModel.trim() : (preset.defaultTestModel ?? '');
+      const record: Extract<ProviderRecord, { id: 'openai-compat' }> = {
+        id: 'openai-compat',
+        instanceId: crypto.randomUUID(),
+        name: name.trim() || preset.name,
+        presetId: preset.id,
+        baseURL: baseURL.trim() || preset.baseURL,
+        apiKey: apiKey.trim(),
+        testModel: effectiveTestModel,
+        enabled: true
+      };
+      addProvider(record);
+    }
+    close();
+  }
+
   async function save() {
     verifying = true;
     verifyError = null;
@@ -167,10 +199,15 @@
         {#if verifyError}
           <ErrorBanner error={verifyError} providerName="OpenRouter" />
         {/if}
-        <div class="flex justify-end gap-2">
+        <div class="flex flex-wrap justify-end gap-2">
           <button type="button" class="px-3 py-1.5 text-sm" onclick={reset}>Back</button>
+          {#if verifyError && (verifyError.category === 'network' || verifyError.category === 'cors' || verifyError.category === 'server_unavailable' || verifyError.category === 'unknown')}
+            <button type="button" class="rounded-md border border-border/60 px-3 py-1.5 text-sm hover:bg-muted/40" onclick={saveWithoutVerify}>
+              Save without verification
+            </button>
+          {/if}
           <button type="button" class="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50" onclick={save} disabled={saveDisabled}>
-            {verifying ? 'Verifying…' : 'Save'}
+            {verifying ? 'Verifying…' : (verifyError ? 'Retry' : 'Save')}
           </button>
         </div>
       {:else if chosen === 'anthropic'}
@@ -181,10 +218,15 @@
         {#if verifyError}
           <ErrorBanner error={verifyError} providerName="Anthropic" />
         {/if}
-        <div class="flex justify-end gap-2">
+        <div class="flex flex-wrap justify-end gap-2">
           <button type="button" class="px-3 py-1.5 text-sm" onclick={reset}>Back</button>
+          {#if verifyError && (verifyError.category === 'network' || verifyError.category === 'cors' || verifyError.category === 'server_unavailable' || verifyError.category === 'unknown')}
+            <button type="button" class="rounded-md border border-border/60 px-3 py-1.5 text-sm hover:bg-muted/40" onclick={saveWithoutVerify}>
+              Save without verification
+            </button>
+          {/if}
           <button type="button" class="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50" onclick={save} disabled={saveDisabled}>
-            {verifying ? 'Verifying…' : 'Save'}
+            {verifying ? 'Verifying…' : (verifyError ? 'Retry' : 'Save')}
           </button>
         </div>
       {:else if chosen === 'custom-preset'}
@@ -209,10 +251,15 @@
         {#if verifyError}
           <ErrorBanner error={verifyError} providerName={name.trim() || 'the endpoint'} />
         {/if}
-        <div class="flex justify-end gap-2">
+        <div class="flex flex-wrap justify-end gap-2">
           <button type="button" class="px-3 py-1.5 text-sm" onclick={reset}>Back</button>
+          {#if verifyError && (verifyError.category === 'network' || verifyError.category === 'cors' || verifyError.category === 'server_unavailable' || verifyError.category === 'unknown')}
+            <button type="button" class="rounded-md border border-border/60 px-3 py-1.5 text-sm hover:bg-muted/40" onclick={saveWithoutVerify}>
+              Save without verification
+            </button>
+          {/if}
           <button type="button" class="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50" onclick={save} disabled={saveDisabled || !baseURL.trim()}>
-            {verifying ? 'Verifying…' : 'Save'}
+            {verifying ? 'Verifying…' : (verifyError ? 'Retry' : 'Save')}
           </button>
         </div>
       {/if}

@@ -32,7 +32,17 @@ export function openaiCompatAdapter(record: Extract<ProviderRecord, { id: 'opena
           }),
           signal
         });
-      } catch (e) { throw translateError(e, 'openai-compat', { suspectCors: true }); }
+      } catch (e) {
+        // Fetch throwing TypeError "Failed to fetch" in the browser is ambiguous:
+        // it can mean a CORS block, a DNS/TLS failure, transient network drop, or
+        // a browser extension intercepting the request. Prior code flagged all of
+        // these as CORS — which is misleading for preset providers that demonstrably
+        // support browser CORS (Groq, Together, Fireworks, DeepInfra, Cerebras,
+        // SambaNova — verified via OPTIONS preflight). Only flag as CORS when the
+        // endpoint is a user-entered 'custom' preset where we truly don't know.
+        const suspectCors = !record.presetId || record.presetId === 'custom';
+        throw translateError(e, 'openai-compat', { suspectCors });
+      }
       if (resp.ok) return { label: record.name };
       const body = await resp.text().catch(() => '');
       throw translateError({ status: resp.status, message: body || `HTTP ${resp.status}` }, 'openai-compat');
