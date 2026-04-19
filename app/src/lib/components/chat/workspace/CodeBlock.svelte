@@ -21,8 +21,8 @@
   const lang = $derived((token.lang ?? '').toLowerCase().trim());
 </script>
 
-<div class="group relative my-3 rounded-md border border-border/50 bg-[hsl(220_13%_12%)] dark:bg-[hsl(220_13%_10%)]">
-  <div class="flex items-center justify-between border-b border-border/30 px-3 py-1.5">
+<div class="not-prose group relative my-3 overflow-hidden rounded-md border border-border/60 bg-muted/40 dark:bg-muted/20">
+  <div class="flex items-center justify-between border-b border-border/50 bg-muted/60 px-3 py-1.5 dark:bg-muted/30">
     <span class="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
       {lang || 'text'}
     </span>
@@ -30,7 +30,7 @@
       type="button"
       onclick={copy}
       aria-label="Copy code"
-      class="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+      class="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       {#if copied}
         <Check size={11} class="text-green-500" /> Copied
