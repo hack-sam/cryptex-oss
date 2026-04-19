@@ -6,7 +6,6 @@
   import TechniqueSearchInput from './TechniqueSearchInput.svelte';
   import TechniqueGroup from './TechniqueGroup.svelte';
   import TechniqueRecent from './TechniqueRecent.svelte';
-  import AttackChainDialog from '$lib/components/chat/attack-chain/AttackChainDialog.svelte';
   import Zap from 'lucide-svelte/icons/zap';
   import { onMount } from 'svelte';
 
@@ -15,7 +14,6 @@
 
   let query = $state('');
   let searchInputRef = $state<HTMLInputElement | null>(null);
-  let dialogOpen = $state(false);
 
   const filtered = $derived(query.trim() ? search(query) : allTechniques());
 
@@ -46,17 +44,11 @@
   {#if chat}
     <button
       type="button"
-      onclick={() => (dialogOpen = true)}
+      onclick={() => window.dispatchEvent(new CustomEvent('chat:open-attack-chain'))}
       class="mb-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs text-primary hover:bg-primary/20"
     >
       <Zap size={12} /> Attack Chain
     </button>
-    <AttackChainDialog
-      bind:open={dialogOpen}
-      {chat}
-      onInsertToComposer={(text) =>
-        window.dispatchEvent(new CustomEvent('composer:insert', { detail: { text } }))}
-    />
   {/if}
   <p class="mb-2 px-1 text-[10px] leading-snug text-muted-foreground">
     Click a technique to transform selected text, or type <code class="font-mono">/slug</code> in the composer.

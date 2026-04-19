@@ -5,7 +5,7 @@
   import MessageList from './MessageList.svelte';
   import MessageBubble from './MessageBubble.svelte';
   import Composer from '../composer/Composer.svelte';
-  import AttackChainDialog from '../attack-chain/AttackChainDialog.svelte';
+  import AttackChainSidebar from '../attack-chain/AttackChainSidebar.svelte';
   import { onMount } from 'svelte';
 
   type Props = { chat: ChatRow };
@@ -59,47 +59,55 @@
   function onReasoningDelta(delta: string) { streamingReasoning += delta; }
 
   onMount(() => {
-    const handler = () => { attackChainOpen = true; };
+    const handler = () => { attackChainOpen = !attackChainOpen; };
     window.addEventListener('chat:open-attack-chain', handler);
     return () => window.removeEventListener('chat:open-attack-chain', handler);
   });
 </script>
 
-<AttackChainDialog
-  bind:open={attackChainOpen}
-  {chat}
-  onInsertToComposer={(text) =>
-    window.dispatchEvent(new CustomEvent('composer:insert', { detail: { text } }))}
-/>
+<div
+  class="grid h-full"
+  style:grid-template-columns={attackChainOpen ? 'minmax(0,1fr) 440px' : 'minmax(0,1fr)'}
+>
+  <div class="fade-in flex h-full min-w-0 flex-col gap-2">
+    <ChatHeader {chat} />
+    <MessageList bind:this={messageListEl} {chat} {messages} />
 
-<div class="fade-in flex h-full flex-col gap-2">
-  <ChatHeader {chat} />
-  <MessageList bind:this={messageListEl} {chat} {messages} />
+    {#if streaming}
+      <MessageBubble
+        {chat}
+        message={{
+          id: 'streaming',
+          ownerId: 'local',
+          chatId: chat.id,
+          role: 'assistant',
+          createdAt: Date.now(),
+          content: streamingContent,
+          reasoning: streamingReasoning || undefined,
+          tags: []
+        } as MessageRow}
+        live={true}
+      />
+    {/if}
 
-  {#if streaming}
-    <MessageBubble
+    <Composer
       {chat}
-      message={{
-        id: 'streaming',
-        ownerId: 'local',
-        chatId: chat.id,
-        role: 'assistant',
-        createdAt: Date.now(),
-        content: streamingContent,
-        reasoning: streamingReasoning || undefined,
-        tags: []
-      } as MessageRow}
-      live={true}
+      {activeMode}
+      onModeChange={setActiveMode}
+      {onMessageAppended}
+      {onTextDelta}
+      {onReasoningDelta}
+      onStreamingChanged={(v) => (streaming = v)}
+    />
+  </div>
+
+  {#if attackChainOpen}
+    <AttackChainSidebar
+      open={attackChainOpen}
+      {chat}
+      onClose={() => (attackChainOpen = false)}
+      onInsertToComposer={(text) =>
+        window.dispatchEvent(new CustomEvent('composer:insert', { detail: { text } }))}
     />
   {/if}
-
-  <Composer
-    {chat}
-    {activeMode}
-    onModeChange={setActiveMode}
-    {onMessageAppended}
-    {onTextDelta}
-    {onReasoningDelta}
-    onStreamingChanged={(v) => (streaming = v)}
-  />
 </div>

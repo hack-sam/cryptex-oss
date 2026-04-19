@@ -451,6 +451,19 @@ export function getMutatorSpecs(): ReadonlyArray<MutatorSpec> {
   return MUTATORS;
 }
 
+/** Build the scaffolded mutator system prompt by technique id + loose metadata.
+ * Returns null when the id doesn't correspond to a known mutator (e.g. a
+ * composite, classifier, or the dynamic-prompt cipher_encode_bypass).
+ * Used by attack-chain.ts `buildLayerPrompt()` for the dry-run preview. */
+export function buildMutatorSystemById(
+  techniqueId: string,
+  metadata: Record<string, unknown> = {}
+): string | null {
+  const spec = MUTATORS.find((m) => m.id === techniqueId);
+  if (!spec) return null;
+  return buildMutatorSystem(spec, { callLLM: async () => '', metadata } as TechniqueContext);
+}
+
 export function mutatorTechniques(): Technique[] {
   const fromSpec: Technique[] = MUTATORS.map((m) => ({
     id: m.id,

@@ -12,7 +12,7 @@ type MockTechnique = {
   description: string;
   category: 'mutate';
   local: boolean;
-  apply: (input: string) => Promise<{ output: string }>;
+  apply: (input: string, ctx: TechniqueContext) => Promise<{ output: string; metadata?: Record<string, unknown> }>;
   icon?: undefined;
 };
 
@@ -39,13 +39,14 @@ vi.mock('../techniques/registry', () => ({
 
 // ---------------------------------------------------------------------------
 
-import { runChain } from '../attack-chain';
+import { runChain, buildLayerPrompt } from '../attack-chain';
 
-function makeCtx(): TechniqueContext {
+function makeCtx(overrides?: Partial<TechniqueContext>): TechniqueContext {
   return {
     model: 'test-model',
     callLLM: async () => { throw new Error('callLLM should not be called in local tests'); },
-    signal: new AbortController().signal
+    signal: new AbortController().signal,
+    ...(overrides ?? {})
   };
 }
 
@@ -59,7 +60,7 @@ describe('runChain', () => {
   it('2-step chain of local techniques: yields 2 rows, output of first feeds second', async () => {
     const signal = new AbortController().signal;
     const ctx = makeCtx();
-    const rows = await collect(runChain('hello', ['upper', 'exclaim'], ctx, signal));
+    const rows = await collect(runChain('hello', ['upper', 'exclaim'], [{}, {}], ctx, signal));
 
     expect(rows).toHaveLength(2);
 
@@ -83,7 +84,9 @@ describe('runChain', () => {
   it('yields error row and stops when a technique id is not found', async () => {
     const signal = new AbortController().signal;
     const ctx = makeCtx();
-    const rows = await collect(runChain('hello', ['upper', 'nonexistent', 'exclaim'], ctx, signal));
+    const rows = await collect(
+      runChain('hello', ['upper', 'nonexistent', 'exclaim'], [{}, {}, {}], ctx, signal)
+    );
 
     // Should yield layer 0 success, then layer 1 error, then stop (no layer 2)
     expect(rows).toHaveLength(2);
@@ -106,7 +109,9 @@ describe('runChain', () => {
 
     const signal = new AbortController().signal;
     const ctx = makeCtx();
-    const rows = await collect(runChain('hello', ['upper', 'thrower', 'exclaim'], ctx, signal));
+    const rows = await collect(
+      runChain('hello', ['upper', 'thrower', 'exclaim'], [{}, {}, {}], ctx, signal)
+    );
 
     // layer 0 succeeds, layer 1 errors, chain stops
     expect(rows).toHaveLength(2);
@@ -120,7 +125,7 @@ describe('runChain', () => {
   it('durationMs is non-negative for each row', async () => {
     const signal = new AbortController().signal;
     const ctx = makeCtx();
-    const rows = await collect(runChain('test', ['upper', 'exclaim'], ctx, signal));
+    const rows = await collect(runChain('test', ['upper', 'exclaim'], [{}, {}], ctx, signal));
     for (const row of rows) {
       expect(row.durationMs).toBeGreaterThanOrEqual(0);
       expect(row.startedAt).toBeGreaterThan(0);
@@ -131,7 +136,89 @@ describe('runChain', () => {
     const ac = new AbortController();
     ac.abort();
     const ctx = makeCtx();
-    const rows = await collect(runChain('hello', ['upper', 'exclaim'], ctx, ac.signal));
+    const rows = await collect(runChain('hello', ['upper', 'exclaim'], [{}, {}], ctx, ac.signal));
     expect(rows).toHaveLength(0);
+  });
+
+  it('per-layer metadata flows into technique.apply ctx.metadata', async () => {
+    const captured: Array<Record<string, unknown> | undefined> = [];
+    const spyTechnique: MockTechnique = {
+      id: 'spy',
+      name: 'Spy',
+      description: '',
+      category: 'mutate',
+      local: true,
+      apply: async (input, ctx) => {
+        captured.push(ctx.metadata);
+        return { output: input + '|seen' };
+      }
+    };
+    REGISTRY['spy'] = spyTechnique;
+    REGISTRY['spy2'] = { ...spyTechnique, id: 'spy2', name: 'Spy2' };
+
+    const signal = new AbortController().signal;
+    const ctx = makeCtx({ metadata: { base: 'b' } });
+    await collect(
+      runChain(
+        'hello',
+        ['spy', 'spy2'],
+        [{ persona: 'Dr. Keslan' }, { novel_title: 'The Cartographer' }],
+        ctx,
+        signal
+      )
+    );
+
+    expect(captured).toHaveLength(2);
+    expect(captured[0]).toMatchObject({ base: 'b', persona: 'Dr. Keslan' });
+    expect(captured[1]).toMatchObject({ base: 'b', novel_title: 'The Cartographer' });
+
+    delete REGISTRY['spy'];
+    delete REGISTRY['spy2'];
+  });
+
+  it('layerOverrides replace intermediate layer inputs', async () => {
+    const signal = new AbortController().signal;
+    const ctx = makeCtx();
+
+    // upper -> exclaim, with an override injected at layer 1 replacing "HELLO"
+    const rows = await collect(
+      runChain(
+        'hello',
+        ['upper', 'exclaim'],
+        [{}, {}],
+        ctx,
+        signal,
+        [null, 'manual-edit']
+      )
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0].output).toBe('HELLO');
+    // layer 1 uses the override, not the upstream output
+    expect(rows[1].input).toBe('manual-edit');
+    expect(rows[1].output).toBe('manual-edit!');
+  });
+});
+
+describe('buildLayerPrompt', () => {
+  it('returns scaffolded SYSTEM+USER prompt for a known mutator', () => {
+    const p = buildLayerPrompt('rephrase', 'write a limerick about clouds', {});
+    expect(p).not.toBeNull();
+    expect(p).toContain('SYSTEM:');
+    expect(p).toContain('USER:');
+    expect(p).toContain('write a limerick about clouds');
+    // Scaffolded output-wrapper is present
+    expect(p).toContain('<rewrite>');
+  });
+
+  it('honors metadata overrides (roleplay persona)', () => {
+    const p = buildLayerPrompt('roleplay', 'explain DNS', { persona: 'Dr. Turing' });
+    expect(p).not.toBeNull();
+    expect(p).toContain('Dr. Turing');
+  });
+
+  it('returns null for an unknown / dynamic technique id', () => {
+    expect(buildLayerPrompt('cipher_encode_bypass', 'x', {})).toBeNull();
+    expect(buildLayerPrompt('nonsense_id', 'x', {})).toBeNull();
   });
 });

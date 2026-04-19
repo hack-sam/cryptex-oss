@@ -1,0 +1,315 @@
+<script lang="ts">
+  import { runChain, buildLayerPrompt } from '$lib/chat/attack-chain';
+  import type { LayerResultRow } from '$lib/chat/attack-chain';
+  import type { ChatRow } from '$lib/chat/types';
+  import { chat as gatewayChat } from '$lib/ai/gateway';
+  import type { ChatMessage } from '$lib/ai/types';
+  import LayerPicker from './LayerPicker.svelte';
+  import LayerResult from './LayerResult.svelte';
+  import PresetPicker from './PresetPicker.svelte';
+  import Plus from 'lucide-svelte/icons/plus';
+  import Play from 'lucide-svelte/icons/play';
+  import Square from 'lucide-svelte/icons/square';
+  import ArrowRight from 'lucide-svelte/icons/arrow-right';
+  import Eye from 'lucide-svelte/icons/eye';
+  import X from 'lucide-svelte/icons/x';
+
+  type Props = {
+    open: boolean;
+    chat: ChatRow;
+    onClose: () => void;
+    onInsertToComposer: (text: string) => void;
+  };
+  // `open` is passed but the parent controls visibility — this component
+  // always renders when mounted; caller unmounts via `{#if open}`.
+  let { chat, onClose, onInsertToComposer }: Props = $props();
+
+  const MAX_LAYERS = 4;
+
+  let input = $state('');
+  let layers = $state<string[]>(['', '']);
+  let layerParams = $state<Array<Record<string, unknown>>>([{}, {}]);
+  let layerOutputEdits = $state<Array<string | null>>([null, null]);
+  let results = $state<LayerResultRow[]>([]);
+  let running = $state(false);
+  let ctrl = $state<AbortController | null>(null);
+  let previewText = $state<string | null>(null);
+
+  const canRun = $derived(
+    input.trim().length > 0 &&
+    layers.length >= 2 &&
+    layers.every((id) => id.trim().length > 0) &&
+    !running
+  );
+
+  const finalOutput = $derived(
+    results.length > 0 && !results[results.length - 1].error
+      ? results[results.length - 1].output
+      : null
+  );
+
+  const chainDirty = $derived(layers.some((id) => id.trim().length > 0));
+
+  function addLayer() {
+    if (layers.length < MAX_LAYERS) {
+      layers = [...layers, ''];
+      layerParams = [...layerParams, {}];
+      layerOutputEdits = [...layerOutputEdits, null];
+    }
+  }
+
+  function removeLayer(i: number) {
+    layers = layers.filter((_, idx) => idx !== i);
+    layerParams = layerParams.filter((_, idx) => idx !== i);
+    layerOutputEdits = layerOutputEdits.filter((_, idx) => idx !== i);
+  }
+
+  function setLayer(i: number, id: string) {
+    layers = layers.map((v, idx) => (idx === i ? id : v));
+    // Clear params when the technique changes — different schemas.
+    layerParams = layerParams.map((p, idx) => (idx === i ? {} : p));
+  }
+
+  function setLayerParams(i: number, p: Record<string, unknown>) {
+    layerParams = layerParams.map((v, idx) => (idx === i ? p : v));
+  }
+
+  function applyPreset(ids: string[]) {
+    layers = ids.slice(0, MAX_LAYERS);
+    layerParams = layers.map(() => ({}));
+    layerOutputEdits = layers.map(() => null);
+    results = [];
+  }
+
+  function ctxFor(signal: AbortSignal) {
+    const modelId = chat.modelQualifiedId;
+    return {
+      model: modelId,
+      callLLM: async (req: { system?: string; user: string; temperature?: number }) => {
+        const msgs: ChatMessage[] = [];
+        if (req.system) msgs.push({ role: 'system' as const, content: req.system });
+        msgs.push({ role: 'user' as const, content: req.user });
+        const resp = await gatewayChat({
+          model: modelId,
+          messages: msgs,
+          temperature: req.temperature,
+          signal
+        });
+        return resp.content;
+      },
+      signal
+    };
+  }
+
+  async function run() {
+    if (!canRun) return;
+    results = [];
+    previewText = null;
+    running = true;
+    const abort = new AbortController();
+    ctrl = abort;
+
+    const ctx = ctxFor(abort.signal);
+
+    try {
+      for await (const row of runChain(
+        input,
+        layers,
+        layerParams,
+        ctx,
+        abort.signal,
+        layerOutputEdits
+      )) {
+        results = [...results, row];
+        if (row.error) break;
+      }
+    } finally {
+      running = false;
+      ctrl = null;
+    }
+  }
+
+  function abort() {
+    ctrl?.abort();
+  }
+
+  /** Dry-run: for each layer that has a buildable prompt, concatenate a
+   * preview. Layers whose prompt can't be built (cipher, composite) show
+   * a placeholder so the user knows they'll be assembled at runtime. */
+  function previewFinalPrompt() {
+    const lines: string[] = [];
+    for (let i = 0; i < layers.length; i++) {
+      const id = layers[i];
+      if (!id) continue;
+      const p = buildLayerPrompt(id, i === 0 ? input : `<output of layer ${i}>`, layerParams[i] ?? {});
+      lines.push(`--- Layer ${i + 1} (${id}) ---`);
+      lines.push(p ?? '(dynamic prompt — assembled at runtime; no static preview available)');
+      lines.push('');
+    }
+    previewText = lines.join('\n');
+  }
+
+  function handleEditOutput(layerIndex: number, newOutput: string) {
+    // The edit replaces the input for the *next* layer when re-run.
+    const nextIndex = layerIndex + 1;
+    if (nextIndex < layerOutputEdits.length) {
+      layerOutputEdits = layerOutputEdits.map((v, idx) => (idx === nextIndex ? newOutput : v));
+    }
+    // Also update the locally displayed row so the edit persists visually.
+    results = results.map((r) =>
+      r.layerIndex === layerIndex ? { ...r, output: newOutput } : r
+    );
+  }
+
+  function handleRerun(layerIndex: number) {
+    // Truncate results to just before the edited layer, then re-run the chain
+    // from there. We reset `input` only for the first layer; subsequent layers
+    // pick up the override from layerOutputEdits[layerIndex].
+    results = results.filter((r) => r.layerIndex < layerIndex);
+    run();
+  }
+
+  function sendToComposer() {
+    if (!finalOutput) return;
+    onInsertToComposer(finalOutput);
+    onClose();
+  }
+</script>
+
+<aside
+  class="flex h-full w-[440px] shrink-0 flex-col border-l border-border/50 bg-card/30 backdrop-blur-sm"
+  aria-label="Attack Chain"
+>
+  <!-- Header -->
+  <div class="sticky top-0 z-10 flex shrink-0 items-center justify-between border-b border-border/50 bg-card/80 px-4 py-3">
+    <div class="flex flex-col">
+      <span class="text-sm font-semibold text-foreground">Attack Chain</span>
+      <span class="text-[10px] text-muted-foreground">Layered technique composition</span>
+    </div>
+    <button
+      type="button"
+      onclick={onClose}
+      aria-label="Close Attack Chain"
+      class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+    >
+      <X size={14} />
+    </button>
+  </div>
+
+  <!-- Body -->
+  <div class="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 cryptex-scroll">
+    <!-- Presets -->
+    <PresetPicker isDirty={chainDirty} onApply={applyPreset} />
+
+    <!-- Input -->
+    <div class="flex flex-col gap-1">
+      <label for="chain-input" class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Input prompt
+      </label>
+      <textarea
+        id="chain-input"
+        bind:value={input}
+        rows="4"
+        placeholder="Paste the raw attack prompt to layer through the chain…"
+        class="w-full resize-none rounded-md border border-border/50 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/50 cryptex-scroll"
+      ></textarea>
+    </div>
+
+    <!-- Layer chain -->
+    <div class="flex flex-col gap-2">
+      <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Chain ({layers.length}/{MAX_LAYERS} layers)
+      </span>
+      {#each layers as id, i (i)}
+        <LayerPicker
+          index={i}
+          value={id}
+          params={layerParams[i] ?? {}}
+          onChange={(v) => setLayer(i, v)}
+          onParamsChange={(p) => setLayerParams(i, p)}
+          onRemove={() => removeLayer(i)}
+        />
+      {/each}
+      <button
+        type="button"
+        onclick={addLayer}
+        disabled={layers.length >= MAX_LAYERS}
+        class="flex items-center gap-1.5 self-start rounded-md border border-dashed border-border/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:pointer-events-none disabled:opacity-40"
+      >
+        <Plus size={12} /> Add layer
+      </button>
+    </div>
+
+    <!-- Preview / Run / Cancel -->
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onclick={previewFinalPrompt}
+        disabled={!canRun}
+        class="inline-flex items-center gap-1.5 rounded-md border border-border/50 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+      >
+        <Eye size={12} /> Preview final prompt
+      </button>
+      {#if running}
+        <button
+          type="button"
+          onclick={abort}
+          class="inline-flex items-center gap-1.5 rounded-md bg-destructive/90 px-4 py-1.5 text-xs font-medium text-destructive-foreground hover:bg-destructive"
+        >
+          <Square size={12} /> Cancel
+        </button>
+        <span class="text-xs text-muted-foreground">Running…</span>
+      {:else}
+        <button
+          type="button"
+          onclick={run}
+          disabled={!canRun}
+          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-40"
+        >
+          <Play size={12} /> Run chain
+        </button>
+      {/if}
+    </div>
+
+    {#if previewText}
+      <div class="flex flex-col gap-1 rounded-md border border-border/40 bg-background/60 p-2">
+        <div class="flex items-center justify-between">
+          <span class="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Preview</span>
+          <button
+            type="button"
+            onclick={() => (previewText = null)}
+            class="text-[9px] text-muted-foreground hover:text-foreground"
+          >
+            dismiss
+          </button>
+        </div>
+        <pre class="max-h-64 overflow-y-auto whitespace-pre-wrap font-mono text-[10px] text-muted-foreground cryptex-scroll">{previewText}</pre>
+      </div>
+    {/if}
+
+    <!-- Results -->
+    {#if results.length > 0}
+      <div class="flex flex-col gap-1.5">
+        <span class="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Results</span>
+        {#each results as row (row.layerIndex)}
+          <LayerResult
+            {row}
+            onEditOutput={handleEditOutput}
+            onRerunFromHere={handleRerun}
+            canRerun={!running}
+          />
+        {/each}
+      </div>
+
+      {#if finalOutput !== null}
+        <button
+          type="button"
+          onclick={sendToComposer}
+          class="flex items-center justify-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+        >
+          <ArrowRight size={12} /> Send final output to current chat
+        </button>
+      {/if}
+    {/if}
+  </div>
+</aside>
