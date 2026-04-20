@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "dev:clean": "npm run clean && vite dev",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test:unit": "vitest run",
-    "size": "npm run build && size-limit"
+    "size": "npm run build && size-limit",
+    "clean": "node --input-type=module -e \"import fs from 'node:fs';fs.rmSync('node_modules/.vite',{recursive:true,force:true});fs.rmSync('.svelte-kit',{recursive:true,force:true})\""
   },
   "devDependencies": {
     "@size-limit/preset-app": "11.1.6",
