@@ -1,13 +1,13 @@
 import { ulid } from 'ulid';
 import { db } from './db';
-import { session } from '$lib/auth/session.svelte';
+import { currentOwnerId } from '$lib/auth/session.svelte';
 import type {
   ChatRow, MessageRow, AttachmentRow, ChatSettings,
   AttackChainRunRow, AttackChainLayerTrace
 } from './types';
 import { DEFAULT_CHAT_SETTINGS } from './types';
 
-function ownerId(): string { return session.currentUser.id; }
+function ownerId(): string { return currentOwnerId(); }
 
 export const repo = {
   async createChat(input: { title: string; modelQualifiedId: string; settings?: Partial<ChatSettings>; parentChatId?: string; parentMessageId?: string }): Promise<ChatRow> {

@@ -1,24 +1,38 @@
-import { describe, it, expect } from 'vitest';
-import { session } from '../session.svelte';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-describe('session (v1 local stub)', () => {
-  it('returns a local user', () => {
-    expect(session.currentUser.id).toBe('local');
-    expect(session.isAuthenticated).toBe(true);
+const originalAuthEnabled = process.env.VITE_AUTH_ENABLED;
+
+describe('session', () => {
+  beforeEach(() => {
+    vi.resetModules();
   });
 
-  it('hasFeature returns true for all flags in v1', () => {
-    expect(session.hasFeature('godmode')).toBe(true);
-    expect(session.hasFeature('mcp')).toBe(true);
-    expect(session.hasFeature('export')).toBe(true);
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    if (originalAuthEnabled === undefined) delete process.env.VITE_AUTH_ENABLED;
+    else process.env.VITE_AUTH_ENABLED = originalAuthEnabled;
   });
 
-  it('getAuthHeader returns empty object', () => {
-    expect(session.getAuthHeader()).toEqual({});
+  it('returns local user when auth flag is off', async () => {
+    vi.stubEnv('VITE_AUTH_ENABLED', 'false');
+    process.env.VITE_AUTH_ENABLED = 'false';
+    const { session } = await import('../session.svelte');
+    expect(session.current).toEqual({ id: 'local', plan: 'free' });
+    expect(session.isSignedIn).toBe(false);
   });
 
-  it('login and logout are no-ops that resolve', async () => {
-    await expect(session.login()).resolves.toBeUndefined();
-    await expect(session.logout()).resolves.toBeUndefined();
+  it('returns null when flag on but no active Supabase session', async () => {
+    vi.stubEnv('VITE_AUTH_ENABLED', 'true');
+    vi.stubEnv('PUBLIC_SUPABASE_URL', 'http://127.0.0.1:54321');
+    vi.stubEnv('PUBLIC_SUPABASE_ANON_KEY', 'test-anon-key');
+    process.env.VITE_AUTH_ENABLED = 'true';
+    const { session } = await import('../session.svelte');
+    expect(session.current).toBeNull();
+    expect(session.isSignedIn).toBe(false);
+  });
+
+  it('exposes a vaultUnlocked getter (false until C5)', async () => {
+    const { session } = await import('../session.svelte');
+    expect(session.vaultUnlocked).toBe(false);
   });
 });
