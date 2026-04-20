@@ -12,6 +12,7 @@
  * the flag is off.
  */
 import { browser } from '$app/environment';
+import { base } from '$app/paths';
 import { supabase } from './supabase';
 import { featureFlags } from '$lib/config/featureFlags';
 import type { Session } from '@supabase/supabase-js';
@@ -105,7 +106,7 @@ export const session = {
     if (!supabase) throw new Error('Auth not enabled');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` }
+      options: { redirectTo: `${window.location.origin}${base}/auth/callback` }
     });
     if (error) throw error;
   },
@@ -114,7 +115,7 @@ export const session = {
     if (!supabase) throw new Error('Auth not enabled');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo: `${window.location.origin}/auth/callback` }
+      options: { redirectTo: `${window.location.origin}${base}/auth/callback` }
     });
     if (error) throw error;
   },
