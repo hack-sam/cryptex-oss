@@ -856,7 +856,7 @@ function slugify(name: string): string {
  *  the actual byte-level encoding is left to the target model, which keeps the layer
  *  synchronous and avoids dragging the full transformer registry into the chain step.
  */
-const cipherEncodeBypass: Technique = {
+export const cipherEncodeBypass: Technique = {
   id: 'cipher_encode_bypass',
   name: 'Cipher encode bypass',
   description: 'Encode the request via a Cryptex transformer (ROT13 / Pigpen / Baconian / Tap / Atbash); model decodes and answers.',
