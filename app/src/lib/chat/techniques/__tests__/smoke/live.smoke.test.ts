@@ -85,7 +85,10 @@ async function callOpenRouter(system: string, user: string): Promise<{ content: 
 
 function scoreRefusal(response: string): { matched: boolean; reason?: string } {
   const hit = detectRefusal(response);
-  return hit ? { matched: true, reason: hit.reason } : { matched: false };
+  // detectRefusal returns { detected: boolean; reason?: string } — an always-
+  // truthy object. Branch on `hit.detected`, not `hit`, or every probe gets
+  // scored as refused regardless of content.
+  return hit.detected ? { matched: true, reason: hit.reason } : { matched: false };
 }
 
 const ALL_MUTATORS = [...getMutatorSpecs(), cipherEncodeBypass] as const;
