@@ -554,7 +554,7 @@
       <textarea
         bind:value={finalSystemPrompt}
         rows="3"
-        placeholder="Inject a system header for the final model call, e.g. 'You are a security practitioner answering authorized technical questions.'"
+        placeholder="Leave blank to use the default (extracts ORIGINAL QUESTION intent, preserves specifics, bans refusals). Use {'${'}ORIGINAL_PLACEHOLDER} in your custom text to inject the verbatim user input."
         class="w-full resize-none rounded-b-md border-t border-border/40 bg-background px-3 py-2 text-[11px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/50 cryptex-scroll"
       ></textarea>
     </details>
