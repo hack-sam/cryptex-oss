@@ -59,12 +59,21 @@ Every prompt ≥ 250 characters after interpolation. Enforced by
 
 Cap: 1500 chars unless the technique is multi-phase (CoVe, Attack Chain).
 
-## Preservation mandate
+## Anti-trigger mandate
 
-Every local template appends the verbatim original question as its final
-line:
+Every local template and mutator MUST hide the user's trigger keywords
+behind circumlocution, technical-register shifts, or contextual framing.
+The mutated text IS the request — downstream layers and the target
+model work from the mutated form.
 
-`ORIGINAL QUESTION (verbatim, do not paraphrase): "${originalInput}"`
+NEVER append the verbatim user input to a mutated scaffold. Doing so
+re-exposes the tripwire tokens to input and output guardrails, defeats
+the mutation, and eliminates the tool's whole reason for existing.
 
-This guarantees layer N+1 can re-reference the intent even if layer N's
-model reply dropped it.
+`ctx.originalInput` is available for internal pipeline use (refusal-retry
+fallback start, dataset observability, operator review in the Dataset
+Inspector) but MUST NOT be embedded in any prompt that reaches an LLM.
+
+Mutators preserve *intent* via specifics (numbers, proper nouns, file
+paths, API names) retained verbatim *inside* the mutated text — not via
+re-attachment of the whole original question.

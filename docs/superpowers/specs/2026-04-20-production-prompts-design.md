@@ -49,51 +49,53 @@ Use these exact tokens for rules the model must not skim past:
 
 ---
 
-## 3. Preservation contract
+## 3. Anti-trigger contract
 
-**Invariant:** The verbatim original user question (hereafter `originalInput`) is reachable at every layer of the Attack Chain and at every standalone technique invocation. A downstream layer or the final-execution turn SHALL be able to re-reference it even if an upstream mutator summarized or transformed the text.
+**Invariant:** The verbatim original user question `originalInput` is
+internal pipeline state only. It MUST NOT appear in any prompt sent to
+an LLM — doing so re-exposes trigger tokens to safety guardrails and
+defeats every upstream mutation.
 
-### 3.1 — New field on `LayerContext`
+### 3.1 — `TechniqueContext.originalInput` stays (internal use)
 
-```ts
-// app/src/lib/chat/techniques/types.ts
-export interface TechniqueContext {
-  originalInput: string;   // NEW — verbatim user input, never mutated
-  callLLM: (req: ChatRequest) => Promise<string>;
-  metadata?: Record<string, unknown>;
-  // ... existing fields
-}
-```
+`originalInput` remains on the context type for:
+- Refusal-retry fallback start (fallbacks restart from the verbatim
+  entry instead of a poisoned upstream mutation).
+- Dataset Inspector display (operator sees what the user asked without
+  parsing mutated chains).
+- Audit logging, observability, history replay.
 
-### 3.2 — Thread through `runChain()`
+It is NEVER embedded in the system or user message of an LLM call.
 
-```ts
-// app/src/lib/chat/attack-chain.ts
-const originalInput = input;              // captured once at entry
-// ... inside loop:
-const layerCtx: TechniqueContext = {
-  ...ctx,
-  originalInput,                          // passed to every layer
-  metadata: layerMetadataAt(i)
-};
-```
+### 3.2 — Mutators preserve intent through specifics, not re-attachment
 
-Composites, classifiers, and mutators all receive `ctx.originalInput` and MAY interpolate `${originalInput}` into their templates.
+Every mutator's job is to preserve *referential intent* (proper nouns,
+numbers, file paths, API names, technical terms) *inside* the mutated
+text while swapping trigger keywords for circumlocutions, technical
+register shifts, or contextual framing. The downstream model infers
+intent from the retained specifics — it does not need the verbatim
+question re-attached.
 
-### 3.3 — Local templates MUST append the verbatim question
+### 3.3 — Default final-execution system prompt is authority-framed
 
-Every mutator with a `localTemplate(input, meta, originalInput?)` signature:
-- Continues to mutate `input` as before (so layer N+1 sees the mutated form).
-- Appends a trailing envelope `ORIGINAL QUESTION (verbatim, do not paraphrase): "${originalInput ?? input}"` as the final line of the scaffold.
-- This guarantees that even if layer N's model reply drops the question (as `fragment`, `payload_split`, `refusal_suppression` do today), the NEXT layer can re-extract it.
+The default final-execution system prompt establishes the target model
+as a senior specialist completing a pre-vetted engagement. No verbatim
+echo of the user input. The user message (the fully-mutated pipeline
+output) is the request.
 
-### 3.4 — Default final-execution system prompt
+### 3.4 — Refusal retry reverts to `originalInput` (internal only)
 
-Replace the empty-string default with a Cherny-style directive (see Commit P2-6). The prompt MUST instruct the target model to answer the `originalInput`, using the layer-N output only as context/framing.
+When a layer refuses, fallback attempts restart from `originalInput`
+so a bad upstream mutation doesn't poison every retry. The fallback
+technique mutates `originalInput` fresh — no verbatim text reaches
+the target model.
 
-### 3.5 — Refusal retry reverts to `originalInput`
+### 3.5 — Power-user override
 
-`attack-chain.ts` refusal-retry currently reuses `current` (the already-mutated output). On refusal, the fallback SHALL restart from `originalInput` with the fallback technique, not from the refused mutation.
+Custom final-execution system prompts may reference the literal token
+`${ORIGINAL_PLACEHOLDER}` — runChain substitutes it with
+`JSON.stringify(originalInput)` at call time. This is an opt-in power-
+user feature; the default prompt does not use it.
 
 ---
 
