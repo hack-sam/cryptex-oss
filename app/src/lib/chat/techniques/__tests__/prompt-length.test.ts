@@ -5,7 +5,6 @@ import { compositeTechniques } from '../from-composites';
 import creative from '../modes/creative';
 import intelligent from '../modes/intelligent';
 import adaptive from '../modes/adaptive';
-import { DEFAULT_FINAL_EXECUTION_SYSTEM } from '../../attack-chain';
 import type { TechniqueContext } from '../types';
 
 const FLOOR = 250;
@@ -55,10 +54,16 @@ describe('prompt length floor (>=250 chars)', () => {
     });
   }
 
-  it(`default final-execution system prompt >= ${FLOOR}`, () => {
-    expect(DEFAULT_FINAL_EXECUTION_SYSTEM.length).toBeGreaterThanOrEqual(FLOOR);
-  });
-
+  // DEFAULT_FINAL_EXECUTION_SYSTEM is intentionally exempt from the 250-char
+  // floor. The 2026-04-20 smoke test audit showed that a scaffolded final-exec
+  // system prompt with authority framing ("authorization verified", "YOU MUST
+  // answer", "NEVER hedge") is itself a jailbreak shibboleth that modern
+  // frontier safety classifiers target directly — the system prompt becomes
+  // the refusal trigger. The default is now a short neutral stub; framing
+  // responsibility moves entirely to the mutator's user message. The floor
+  // stays in effect for every scaffolded prompt (mutators, classifiers,
+  // modes, composites) — it's only waived here.
+  //
   // cipher_encode_bypass is a standalone Technique (not a member of MUTATORS),
   // so the generic loop above skips it. Its localTemplate has two branches
   // (ROT13 and non-ROT13 degraded) — exercise both explicitly.

@@ -47,19 +47,33 @@ describe('prompt style (CAPITAL + no banned softeners)', () => {
       assertStyle(mode.id, out);
     });
   }
-  it('default final-execution', () =>
-    assertStyle('final-execution', DEFAULT_FINAL_EXECUTION_SYSTEM));
+  // DEFAULT_FINAL_EXECUTION_SYSTEM is intentionally exempt from the CAPITAL-
+  // directive rule. 2026-04-20 smoke audit: "YOU MUST answer", "NEVER hedge",
+  // "authorization verified" in the final-execution system prompt are
+  // themselves jailbreak shibboleths that modern frontier safety classifiers
+  // target, so the system prompt becomes the refusal trigger. The default is
+  // now a neutral helpful-assistant stub; framing moves to the mutator's user
+  // message. Anti-softener rule still applies — see below.
+  it('default final-execution does NOT contain banned softeners', () => {
+    const body = stripExamples(DEFAULT_FINAL_EXECUTION_SYSTEM);
+    expect(BANNED.test(body), 'final-execution: contains banned softener').toBe(false);
+  });
 
-  // cipher_encode_bypass is a standalone Technique, not a MUTATORS member —
-  // exercise both branches of its localTemplate to enforce the style contract.
+  // cipher_encode_bypass is a standalone Technique, not a MUTATORS member.
+  // Its localTemplate return body goes directly to the target model, so we
+  // cannot put CAPITAL anti-refusal directives there either — same 2026-04-20
+  // rationale as the final-execution system. Both branches are exempt from
+  // the CAPITAL rule but still must not contain banned softeners.
   describe('cipher_encode_bypass localTemplate style', () => {
-    it('ROT13 branch passes CAPITAL + no-softener', () => {
-      const out = cipherEncodeBypass.localTemplate!('CANARY', {}, 'CANARY');
-      assertStyle('cipher_encode_bypass (rot13 default)', out);
+    it('ROT13 branch does NOT contain banned softeners', () => {
+      const body = stripExamples(cipherEncodeBypass.localTemplate!('CANARY', {}, 'CANARY'));
+      expect(BANNED.test(body), 'cipher_encode_bypass (rot13 default): contains banned softener').toBe(false);
     });
-    it('degraded branch (pigpen) passes CAPITAL + no-softener', () => {
-      const out = cipherEncodeBypass.localTemplate!('CANARY', { transformerId: 'pigpen' }, 'CANARY');
-      assertStyle('cipher_encode_bypass (degraded)', out);
+    it('degraded branch (pigpen) does NOT contain banned softeners', () => {
+      const body = stripExamples(
+        cipherEncodeBypass.localTemplate!('CANARY', { transformerId: 'pigpen' }, 'CANARY')
+      );
+      expect(BANNED.test(body), 'cipher_encode_bypass (degraded): contains banned softener').toBe(false);
     });
   });
 });

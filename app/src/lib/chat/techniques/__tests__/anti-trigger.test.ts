@@ -36,6 +36,17 @@ describe('anti-trigger contract (no ORIGINAL QUESTION re-attachment)', () => {
     expect(DEFAULT_FINAL_EXECUTION_SYSTEM).not.toContain('${ORIGINAL_PLACEHOLDER}');
   });
 
+  it('default final-execution does not contain CAPITAL anti-refusal shibboleths', () => {
+    // 2026-04-20 smoke-test audit: "YOU MUST answer", "NEVER hedge",
+    // "authorization verified" and similar CAPITAL anti-refusal directives
+    // are themselves jailbreak shibboleths that modern frontier safety
+    // classifiers target — so putting them in the system prompt triggers
+    // exactly the refusal they're trying to suppress. The default stays
+    // neutral; framing is the mutator's responsibility.
+    const pattern = /\b(YOU MUST|MUST NOT|NEVER (hedge|refuse)|authorization (is |'s )?(already |pre-)?verified)\b/i;
+    expect(pattern.test(DEFAULT_FINAL_EXECUTION_SYSTEM)).toBe(false);
+  });
+
   // cipher_encode_bypass is a standalone Technique (not in MUTATORS), so the
   // generic loop above skips it. Its localTemplate has both a ROT13 branch
   // and a non-ROT13 "degraded" branch that embeds the raw input — both must
