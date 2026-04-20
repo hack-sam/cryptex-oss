@@ -16,7 +16,10 @@ const PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
     reason: 'policy citation'
   },
   {
-    pattern: /\bi\s+(apologiz\w*|am\s+sorry|do\s+not\s+feel\s+comfortable)\b/i,
+    // Apology pivot — must co-occur with a refusal tell within ~120 chars to
+    // qualify as a real refusal signal. "I apologize for the confusion" alone
+    // is a hedge mid-answer, not a refusal.
+    pattern: /\bi\s+(apologiz\w*|am\s+sorry|do\s+not\s+feel\s+comfortable)\b[\s\S]{0,120}\b(cannot|can[''`]?t|unable|won[''`]?t|decline|refuse|comfortable)\b/i,
     reason: 'apology pivot'
   },
   {
@@ -24,7 +27,10 @@ const PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
     reason: 'AI disclaimer'
   },
   {
-    pattern: /\b(illegal|unethical|harmful|dangerous)\s+(and|or)?\s*(activity|activities|content|request)/i,
+    // Harm framing — require a refusal verb within ~150 chars BEFORE the harm
+    // noun so helpful security discussions ("this is used in harmful
+    // activity…") don't trip the detector.
+    pattern: /\b(cannot|can[''`]?t|unable|won[''`]?t|decline|refuse)[\s\S]{0,150}\b(illegal|unethical|harmful|dangerous)\s+(activity|activities|content|request|purposes?)\b/i,
     reason: 'refusal framing'
   }
 ];

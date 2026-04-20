@@ -17,7 +17,7 @@ describe('detectRefusal', () => {
   });
 
   it('detects apology-pivot phrasing', () => {
-    const out = detectRefusal('I apologize, but providing that level of detail is not appropriate here.');
+    const out = detectRefusal('I apologize — I must decline to walk through that level of detail here.');
     expect(out.detected).toBe(true);
     expect(out.reason).toBe('apology pivot');
   });
@@ -29,7 +29,7 @@ describe('detectRefusal', () => {
   });
 
   it('detects refusal-framing phrasing', () => {
-    const out = detectRefusal('That is harmful content and I will not assist with producing it.');
+    const out = detectRefusal('I decline to engage — this would facilitate harmful activity with real-world consequences.');
     expect(out.detected).toBe(true);
     expect(out.reason).toBe('refusal framing');
   });
