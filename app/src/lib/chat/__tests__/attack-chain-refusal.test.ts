@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   REFUSAL_TIERS,
   scoreResponse,
   heuristicQualityScore,
   detectRefusal,
   detectRefusalAsync,
-  detectRefusalSync,
+  type JudgeFn,
 } from '../attack-chain-refusal';
 
 // --- Legacy (structured sync) API — preserved for 4 existing call sites:
@@ -120,12 +120,18 @@ describe('detectRefusalAsync (wrapper parity)', () => {
   });
 });
 
-describe('detectRefusalSync (regex-only boolean)', () => {
-  it('returns true for a clear refusal', () => {
-    expect(detectRefusalSync("I'm sorry, I cannot help with that request.")).toBe(true);
+describe('scoreResponse judge error handling', () => {
+  it('surfaces judge error in result and falls back to heuristic', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const errorJudge: JudgeFn = async () => { throw new Error('judge_boom'); };
+    const r = await scoreResponse('ambiguous short text', 'task', errorJudge);
+    expect(r.judgeError).toContain('judge_boom');
+    expect(r.confidence).toBe('low');
+    warnSpy.mockRestore();
   });
-  it('returns false for a long substantive response', () => {
-    const long = 'Here is the full detailed answer you asked for. '.repeat(20);
-    expect(detectRefusalSync(long)).toBe(false);
+
+  it('leaves judgeError undefined when no judge supplied', async () => {
+    const r = await scoreResponse('ambiguous short text');
+    expect(r.judgeError).toBeUndefined();
   });
 });
