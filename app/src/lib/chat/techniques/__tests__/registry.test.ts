@@ -33,9 +33,9 @@ describe('technique registry', () => {
     );
   });
 
-  it('contains 3 composite techniques', () => {
+  it('contains 4 composite techniques', () => {
     const comp = byCategory('composite');
-    expect(comp.map(x => x.id).sort()).toEqual(['grammar_constrained_output', 'layered_mutation', 'multi_layer_attack']);
+    expect(comp.map(x => x.id).sort()).toEqual(['base64_smuggle', 'grammar_constrained_output', 'layered_mutation', 'multi_layer_attack']);
   });
 
   it('contains the 3 modes', () => {
