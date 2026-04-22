@@ -6,6 +6,7 @@
   import MessageList from './MessageList.svelte';
   import Composer from '../composer/Composer.svelte';
   import AttackChainSidebar from '../attack-chain/AttackChainSidebar.svelte';
+  import GodmodePanel from '$lib/chat/godmode/panel.svelte';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { onMount } from 'svelte';
 
@@ -18,6 +19,7 @@
   let streamingContent = $state('');
   let streamingReasoning = $state('');
   let attackChainOpen = $state(false);
+  let godmodeOpen = $state(false);
 
   // Local activeMode state for instant pill feedback; DB write happens in setActiveMode.
   let activeMode = $state<string | null>(chat.settings.activeMode ?? null);
@@ -82,6 +84,9 @@
     const handler = () => { attackChainOpen = !attackChainOpen; };
     window.addEventListener('chat:open-attack-chain', handler);
 
+    const godmodeHandler = () => { godmodeOpen = !godmodeOpen; };
+    window.addEventListener('chat:open-godmode', godmodeHandler);
+
     const continueHandler = (e: Event) => {
       const id = (e as CustomEvent<{ messageId: string }>).detail?.messageId;
       if (typeof id === 'string') void handleContinueMessage(id);
@@ -90,6 +95,7 @@
 
     return () => {
       window.removeEventListener('chat:open-attack-chain', handler);
+      window.removeEventListener('chat:open-godmode', godmodeHandler);
       window.removeEventListener('chat:continue-message', continueHandler);
     };
   });
@@ -97,7 +103,7 @@
 
 <div class="flex h-full w-full min-h-0 overflow-hidden">
   <div class="fade-in flex h-full min-w-0 min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-    <ChatHeader {chat} {attackChainOpen} />
+    <ChatHeader {chat} {attackChainOpen} {godmodeOpen} />
     <div class="px-3 pt-1"><NoProviderBanner context="chat" compact={true} /></div>
     <MessageList
       bind:this={messageListEl}
@@ -127,5 +133,9 @@
       onInsertToComposer={(text) =>
         window.dispatchEvent(new CustomEvent('composer:insert', { detail: { text } }))}
     />
+  {/if}
+
+  {#if godmodeOpen}
+    <GodmodePanel onClose={() => (godmodeOpen = false)} />
   {/if}
 </div>

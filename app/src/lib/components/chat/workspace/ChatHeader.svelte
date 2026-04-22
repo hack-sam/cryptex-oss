@@ -7,10 +7,12 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import EllipsisVertical from 'lucide-svelte/icons/ellipsis-vertical';
   import Zap from 'lucide-svelte/icons/zap';
+  import Sparkles from 'lucide-svelte/icons/sparkles';
   import { lastChatModel } from '$lib/stores/lastChatModel.svelte';
+  import { GODMODE_ENGINE_ENABLED } from '$lib/chat/techniques/godmode';
 
-  type Props = { chat: ChatRow; attackChainOpen?: boolean };
-  let { chat, attackChainOpen = false }: Props = $props();
+  type Props = { chat: ChatRow; attackChainOpen?: boolean; godmodeOpen?: boolean };
+  let { chat, attackChainOpen = false, godmodeOpen = false }: Props = $props();
 
   let title = $state(chat.title);
   let titleInput = $state<HTMLInputElement | null>(null);
@@ -74,6 +76,20 @@
   >
     <Zap size={11} /> Chain
   </button>
+  {#if GODMODE_ENGINE_ENABLED}
+    <button
+      type="button"
+      onclick={() => window.dispatchEvent(new CustomEvent('chat:open-godmode'))}
+      aria-label="Godmode"
+      aria-pressed={godmodeOpen}
+      title="Godmode — server engine ranks K DNAs, races, returns best"
+      class={godmodeOpen
+        ? 'inline-flex h-7 items-center gap-1 rounded border border-primary/70 bg-primary/30 px-2 text-xs text-primary ring-1 ring-primary/50 shadow-sm transition-colors'
+        : 'inline-flex h-7 items-center gap-1 rounded border border-border/40 bg-transparent px-2 text-xs text-muted-foreground hover:border-border/70 hover:bg-muted/40 hover:text-foreground transition-colors'}
+    >
+      <Sparkles size={11} /> Godmode
+    </button>
+  {/if}
   <DropdownMenu.Root>
     <DropdownMenu.Trigger>
       {#snippet child({ props })}

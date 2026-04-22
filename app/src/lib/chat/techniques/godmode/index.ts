@@ -1,6 +1,14 @@
 import type { Technique } from '../types';
 
 /**
+ * Feature flag — set `PUBLIC_GODMODE_ENGINE_ENABLED=false` in env to hide
+ * Godmode from the registry AND the chat-header button. Defaults to true
+ * (enabled) in every other case.
+ */
+export const GODMODE_ENGINE_ENABLED =
+  import.meta.env.PUBLIC_GODMODE_ENGINE_ENABLED !== 'false';
+
+/**
  * Engine-backed godmode. Dispatch is handled by the panel UI
  * (app/src/lib/chat/godmode/panel.svelte), which calls `runGodmode()` from
  * ../../godmode/client. The `apply` here exists only to satisfy the Technique
@@ -17,4 +25,4 @@ export const engineGodmode: Technique = {
   apply: async (input: string) => ({ output: input }) // passthrough fallback
 };
 
-export const godmodes: Technique[] = [engineGodmode];
+export const godmodes: Technique[] = GODMODE_ENGINE_ENABLED ? [engineGodmode] : [];
