@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TechniqueDNA } from './dna';
   import type { RefusalTier } from '../attack-chain-refusal';
+  import { onDestroy } from 'svelte';
   import Copy from 'lucide-svelte/icons/copy';
   import Check from 'lucide-svelte/icons/check';
   import ArrowRight from 'lucide-svelte/icons/arrow-right';
@@ -15,6 +16,10 @@
 
   let copied = $state(false);
   let copyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  onDestroy(() => {
+    if (copyTimer) clearTimeout(copyTimer);
+  });
 
   async function copyToClipboard() {
     try {
