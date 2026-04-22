@@ -73,7 +73,7 @@ export interface ChatRow {
 
 export interface ToolCallLog {
   toolCallId: string;
-  source: 'transformer' | 'slash' | 'mcp' | 'attack-chain';
+  source: 'transformer' | 'slash' | 'mcp' | 'attack-chain' | 'godmode';
   toolName: string;
   input: unknown;
   output: unknown;

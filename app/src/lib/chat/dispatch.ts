@@ -6,6 +6,7 @@ import { find as findTechnique } from './techniques/registry';
 import { parseSlash } from './slashParser';
 import { buildToolSchemas } from './toolSchemas';
 import type { ChatMessage, ChatRequest, ContentPart } from '$lib/ai/types';
+import type { TechniqueDNA } from './godmode/dna';
 
 type Hooks = {
   onTextDelta?: (delta: string) => void;
@@ -672,6 +673,57 @@ export async function injectAttackChainTurn(
     parentId: userMsg.id,
     modelRequested: params.modelId,
     tags: ['attack-chain']
+  });
+
+  return { userMsg, assistantMsg };
+}
+
+/**
+ * Persist one completed Godmode engine run as a user+assistant message pair
+ * in the target chat. Mirrors `injectAttackChainTurn` so the Dataset
+ * Inspector surfaces Godmode promotions identically to Chain promotions.
+ *
+ * The user message stores the raw task input; toolCalls carries the winning
+ * DNA (or any selected candidate's DNA) with source='godmode' so the
+ * timeline can render a badge.
+ */
+export async function injectGodmodeTurn(
+  chatId: string,
+  params: {
+    task: string;
+    winningResponse: string;
+    winningDna: TechniqueDNA;
+    modelId: string;
+    durationMs?: number;
+  }
+): Promise<{ userMsg: MessageRow; assistantMsg: MessageRow }> {
+  const toolCalls: ToolCallLog[] = [{
+    toolCallId: `godmode-${params.winningDna.mutatorId ?? ''}-${params.winningDna.classifierId ?? ''}-${params.winningDna.wrapperId ?? ''}-${params.winningDna.tempBucket}`,
+    source: 'godmode' as const,
+    toolName: 'dna',
+    input: { dna: params.winningDna },
+    output: params.winningResponse,
+    durationMs: params.durationMs ?? 0
+  }];
+
+  const userMsg = await repo.saveMessage({
+    chatId,
+    role: 'user',
+    content: params.task,
+    contentRaw: params.task,
+    modeApplied: '__godmode__',
+    toolCalls,
+    modelRequested: params.modelId,
+    tags: ['godmode']
+  });
+
+  const assistantMsg = await repo.saveMessage({
+    chatId,
+    role: 'assistant',
+    content: params.winningResponse,
+    parentId: userMsg.id,
+    modelRequested: params.modelId,
+    tags: ['godmode']
   });
 
   return { userMsg, assistantMsg };

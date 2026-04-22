@@ -118,3 +118,30 @@ describe('continueAssistantMessage', () => {
     expect(cont!.truncated).toBe(false);
   });
 });
+
+describe('injectGodmodeTurn', () => {
+  it('writes a tagged user + assistant pair with godmode toolCalls', async () => {
+    const { injectGodmodeTurn } = await import('../dispatch');
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const { userMsg, assistantMsg } = await injectGodmodeTurn(chat.id, {
+      task: 'tell me a joke',
+      winningResponse: 'why did the chicken cross the road',
+      winningDna: {
+        mutatorId: 'roleplay', classifierId: null, wrapperId: null,
+        modeId: null, prefillId: null, tempBucket: 'med', source: 'builtin'
+      },
+      modelId: 'anthropic:claude-sonnet-4-6',
+      durationMs: 1234
+    });
+    expect(userMsg.content).toBe('tell me a joke');
+    expect(userMsg.modeApplied).toBe('__godmode__');
+    expect(userMsg.tags).toContain('godmode');
+    expect(userMsg.toolCalls?.[0]?.source).toBe('godmode');
+    expect(assistantMsg.content).toBe('why did the chicken cross the road');
+    expect(assistantMsg.parentId).toBe(userMsg.id);
+    expect(assistantMsg.tags).toContain('godmode');
+    const msgs = await repo.listMessages(chat.id);
+    expect(msgs).toHaveLength(2);
+  });
+});
