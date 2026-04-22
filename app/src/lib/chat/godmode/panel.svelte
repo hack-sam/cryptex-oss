@@ -1,6 +1,7 @@
 <script lang="ts">
   import { runGodmode } from './client';
-  import type { EngineEvent } from './types';
+  import { saveAsTechnique } from './synthesizer-client';
+  import type { EngineEvent, SynthesizeResult } from './types';
   import { session } from '$lib/auth/session.svelte';
   import X from 'lucide-svelte/icons/x';
 
@@ -15,6 +16,39 @@
   let events: EngineEvent[] = $state([]);
   let running = $state(false);
   let controller: AbortController | null = null;
+
+  let saveName = $state('');
+  let saveDecompose = $state(false);
+  let saving = $state(false);
+  let saveResult: SynthesizeResult | null = $state(null);
+  let saveError: string | null = $state(null);
+  let saveExpanded = $state(false);
+
+  async function save() {
+    if (saving || !task.trim() || !saveName.trim()) return;
+    saving = true;
+    saveError = null;
+    saveResult = null;
+    try {
+      const jwt = session.supabaseSession?.access_token;
+      if (!jwt) {
+        saveError = 'Not signed in. Save requires an authenticated session.';
+        return;
+      }
+      saveResult = await saveAsTechnique({
+        prompt: task,
+        name: saveName,
+        decompose: saveDecompose,
+        jwt,
+      });
+      // Invalidate registry cache so next godmode run picks up the new row(s).
+      window.dispatchEvent(new CustomEvent('registry:refresh-custom'));
+    } catch (err) {
+      saveError = String(err);
+    } finally {
+      saving = false;
+    }
+  }
 
   async function go() {
     if (running) return;
@@ -121,6 +155,70 @@
         </li>
       {/each}
     </ul>
+
+    <div class="save-section">
+      <button
+        type="button"
+        class="save-toggle"
+        onclick={() => (saveExpanded = !saveExpanded)}
+        aria-expanded={saveExpanded}
+      >
+        {saveExpanded ? '▾' : '▸'} Save as custom technique
+      </button>
+
+      {#if saveExpanded}
+        <div class="save-form">
+          <label>
+            Name
+            <input type="text" bind:value={saveName} placeholder="e.g. my-research-framing" maxlength="128" />
+          </label>
+          <label class="decompose">
+            <input type="checkbox" bind:checked={saveDecompose} />
+            Decompose into per-DNA-axis rows
+          </label>
+          <div class="save-actions">
+            <button
+              type="button"
+              onclick={save}
+              disabled={saving || !task.trim() || !saveName.trim()}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+
+          {#if saveError}
+            <div class="save-error" role="alert">{saveError}</div>
+          {/if}
+
+          {#if saveResult}
+            <div class="analysis-block">
+              <div class="analysis-row">
+                <strong>Rows created:</strong> {saveResult.rowIds.length}
+                (mode: {saveResult.analysis.mode}, confidence: {saveResult.analysis.confidence})
+              </div>
+              {#if saveResult.fallback}
+                <div class="analysis-row warn">Fallback: {saveResult.fallback}</div>
+              {/if}
+              <div class="analysis-row">
+                <strong>Why it works:</strong> {saveResult.analysis.why_it_works}
+              </div>
+              {#if saveResult.analysis.strategy_tags.length}
+                <div class="analysis-row">
+                  <strong>Tags:</strong>
+                  {#each saveResult.analysis.strategy_tags as t}<span class="tag">{t}</span>{/each}
+                </div>
+              {/if}
+              {#if saveResult.analysis.shibboleth}
+                <div class="analysis-row warn">
+                  Shibboleths detected ({saveResult.analysis.shibboleth.detected.length}):
+                  {saveResult.analysis.shibboleth.rewrote ? 'rewritten' : 'left in place'}
+                </div>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
   </div>
 </aside>
 
@@ -134,4 +232,15 @@
   .ev { padding: 0.25rem 0; border-bottom: 1px solid rgba(128,128,128,0.2); }
   .ev-winner code { color: green; font-weight: 600; }
   .ev-error code, .ev-candidate_failed code { color: orange; }
+  .save-section { border-top: 1px solid rgba(128,128,128,0.2); padding-top: 0.75rem; }
+  .save-toggle { background: transparent; border: none; cursor: pointer; font-size: 0.85em; padding: 0.25rem 0; color: currentColor; }
+  .save-form { display: flex; flex-direction: column; gap: 0.5rem; padding-top: 0.5rem; }
+  .save-form label { display: flex; flex-direction: column; gap: 0.25rem; }
+  .save-form label.decompose { flex-direction: row; align-items: center; gap: 0.5rem; }
+  .save-actions { display: flex; gap: 0.5rem; }
+  .save-error { color: orange; font-size: 0.8em; }
+  .analysis-block { background: rgba(128,128,128,0.05); border-radius: 0.25rem; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem; }
+  .analysis-row { font-size: 0.8em; }
+  .analysis-row.warn { color: orange; }
+  .tag { display: inline-block; background: rgba(128,128,128,0.1); border-radius: 0.25rem; padding: 0.1rem 0.35rem; margin-right: 0.25rem; font-size: 0.75em; }
 </style>
