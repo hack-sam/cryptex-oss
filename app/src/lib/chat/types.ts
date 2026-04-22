@@ -1,3 +1,6 @@
+import type { TechniqueDNA } from './godmode/dna';
+import type { RefusalTier } from './attack-chain-refusal';
+
 export type Role = 'user' | 'assistant' | 'system' | 'tool';
 
 /**
@@ -13,6 +16,23 @@ export interface AttackChainConfig {
   executeEnabled: boolean;
   finalSystemPrompt: string;
   autoRetryEnabled: boolean;
+  modelQualifiedId?: string;
+}
+
+/**
+ * Snapshot of an in-progress Godmode tab configuration, persisted on the
+ * parent chat row so the drawer state survives close / reopen / tab switch.
+ * Run results are NOT persisted here — those live in `godmodeRuns`.
+ */
+export interface GodmodeConfig {
+  task: string;
+  K: 3 | 6 | 12;
+  modelQualifiedId?: string;
+  saveForm: {
+    expanded: boolean;
+    name: string;
+    decompose: boolean;
+  };
 }
 
 export interface ChatSettings {
@@ -30,6 +50,9 @@ export interface ChatSettings {
   toolChoice: 'auto' | 'none' | 'required';
   maxToolCalls: number;
   attackChainConfig?: AttackChainConfig;
+  godmodeConfig?: GodmodeConfig;
+  workspaceTab?: 'chain' | 'godmode';
+  workspaceOpen?: boolean;
 }
 
 export interface ChatRow {
@@ -171,6 +194,37 @@ export interface AttackChainRunRow {
   results: AttackChainLayerTrace[];
   finalOutput?: string;
   tags: string[];
+  tombstoned?: boolean;
+}
+
+/**
+ * One successful candidate from a Godmode run. Failed candidates
+ * (timeout / api_error / cancelled) are excluded from history.
+ */
+export interface GodmodeCandidateRecord {
+  dna: TechniqueDNA;
+  response: string;
+  score: number;
+  tier: RefusalTier;
+  preview: string;
+}
+
+/**
+ * Persisted row for one Godmode engine run — task, config, winner,
+ * every successful candidate. Stored in the `godmodeRuns` Dexie table,
+ * indexed by chatId + createdAt for the per-chat history panel.
+ */
+export interface GodmodeRunRow {
+  id: string;
+  ownerId: string;
+  chatId: string;
+  createdAt: number;
+  updatedAt: number;
+  task: string;
+  K: 3 | 6 | 12;
+  modelId: string;
+  winner: GodmodeCandidateRecord;
+  candidates: GodmodeCandidateRecord[];
   tombstoned?: boolean;
 }
 
