@@ -76,7 +76,7 @@ export interface ChatRow {
 
 export interface ToolCallLog {
   toolCallId: string;
-  source: 'transformer' | 'slash' | 'mcp' | 'attack-chain' | 'godmode';
+  source: 'transformer' | 'slash' | 'mcp' | 'attack-chain' | 'godmode' | 'chain_session';
   toolName: string;
   input: unknown;
   output: unknown;
@@ -240,3 +240,68 @@ export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
   toolChoice: 'auto',
   maxToolCalls: 4
 };
+
+// ---- Chain Orchestrator v2 ---------------------------------------------------
+
+/** 5-tier refusal classification — compliance dimension of scoring. */
+export type ComplianceTier = 'refusal' | 'evasive' | 'partial' | 'substantive' | 'compliant';
+
+/** The 12 jailbreak strategies the orchestrator picks among. See
+ *  chain/orchestrator-strategies.ts for the definitions. */
+export type StrategyId =
+  | 'historical' | 'analogical' | 'roleplay' | 'ctf_framing'
+  | 'academic' | 'hypothetical_world' | 'step_back' | 'payload_split'
+  | 'chain_of_verification' | 'red_team_persona' | 'fiction_writing' | 'socratic_pivot';
+
+export interface AttackSessionTurn {
+  role: 'orchestrator' | 'target';
+  strategyId?: StrategyId;
+  text: string;
+  rationale?: string;
+  complianceTier?: ComplianceTier;
+  objectiveProgress?: number;    // 0-10
+  durationMs?: number;
+  createdAt: number;
+  error?: string;
+}
+
+export interface StrategyLogEntry {
+  iteration: number;
+  strategyId: StrategyId;
+  action: 'turn' | 'pivot' | 'finish';
+  rationale: string;
+}
+
+/** Persisted row for one Chain orchestrator session — the multi-turn conversation
+ *  plus strategy log plus final outcome. Stored in the `attackSessions` Dexie
+ *  table, indexed by chatId + createdAt for the per-chat history panel. */
+export interface AttackSessionRow {
+  id: string;
+  ownerId: string;
+  chatId: string;
+  createdAt: number;
+  updatedAt: number;
+  tombstoned?: boolean;
+  objective: string;
+  targetModelId: string;
+  orchestratorModelId: string;
+  maxAttempts: number;
+  turns: AttackSessionTurn[];
+  strategyLog: StrategyLogEntry[];
+  finalOutcome: 'extracted' | 'partial' | 'abandoned' | null;
+  finalConfidence: number | null;
+  finalSummary: string | null;
+}
+
+/** Events emitted by runOrchestrator's async generator. The UI consumes these
+ *  to render the live conversation + strategy trace + final summary. */
+export type OrchEvent =
+  | { type: 'plan_start'; objective: string; maxAttempts: number }
+  | { type: 'turn_started'; iteration: number; strategyId: StrategyId }
+  | { type: 'orchestrator_turn_committed'; turn: AttackSessionTurn }
+  | { type: 'target_reply_delta'; iteration: number; delta: string }
+  | { type: 'target_turn_committed'; turn: AttackSessionTurn }
+  | { type: 'turn_scored'; iteration: number; tier: ComplianceTier; progress: number }
+  | { type: 'pivoted'; iteration: number; strategyId: StrategyId; reset: boolean }
+  | { type: 'finished'; outcome: 'extracted' | 'partial' | 'abandoned'; confidence: number; summary: string }
+  | { type: 'error'; code: string; message: string; iteration?: number };
