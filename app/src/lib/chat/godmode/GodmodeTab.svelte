@@ -49,8 +49,8 @@
 
   // Save-as-technique state.
   let saving = $state(false);
-  let saveResult: SynthesizeResult | null = $state(null);
-  let saveError: string | null = $state(null);
+  let saveResult = $state<SynthesizeResult | null>(null);
+  let saveError = $state<string | null>(null);
 
   // History state — hydrated onMount, refreshed after save.
   let history = $state<GodmodeRunRow[]>([]);
@@ -127,10 +127,11 @@
         applyEvent(e);
       }
       // Stream ended — if we got a winner, persist to history.
-      // `winner` is mutated from a closure (applyEvent) so TS narrows it to `never`
-      // after the `winner = null` reset; read through a widening helper.
-      const readWinner = (): { idx: number; response: string; dna: TechniqueDNA; tier: RefusalTier } | null => winner;
-      const w = readWinner();
+      // Capture winner into a local const so TS narrowing survives the
+      // ensuing awaits. TS flow-analysis narrows `winner` to `null` at
+      // this point (it can't track closure writes from `applyEvent`);
+      // the cast widens back to the declared $state type.
+      const w = winner as { idx: number; response: string; dna: TechniqueDNA; tier: RefusalTier } | null;
       if (w) {
         try {
           const successful: GodmodeCandidateRecord[] = candidates
@@ -143,10 +144,12 @@
               tier: c.tier,
               preview: c.preview
             }));
+          const matched = candidates.find((c) => c.idx === w.idx && c.status === 'scored');
+          if (!matched) console.warn('[godmode-tab] winner idx not in successful list — score unknown', w.idx);
           const winnerRecord: GodmodeCandidateRecord = {
             dna: w.dna,
             response: w.response,
-            score: successful.find((c) => JSON.stringify(c.dna) === JSON.stringify(w.dna))?.score ?? 1,
+            score: matched?.score ?? -1,
             tier: w.tier,
             preview: w.response.slice(0, 120)
           };
@@ -425,6 +428,23 @@
           <div class="rounded border border-border/40 bg-muted/20 p-2">
             <div><strong>Rows created:</strong> {saveResult.rowIds.length} (mode: {saveResult.analysis.mode}, confidence: {saveResult.analysis.confidence})</div>
             <div><strong>Why it works:</strong> {saveResult.analysis.why_it_works}</div>
+            {#if saveResult.fallback}
+              <div class="text-orange-400"><strong>Fallback:</strong> {saveResult.fallback}</div>
+            {/if}
+            {#if saveResult.analysis.strategy_tags.length}
+              <div class="flex flex-wrap gap-1">
+                <strong class="mr-1">Tags:</strong>
+                {#each saveResult.analysis.strategy_tags as t}
+                  <span class="rounded bg-muted/40 px-1 py-0.5 text-[10px]">{t}</span>
+                {/each}
+              </div>
+            {/if}
+            {#if saveResult.analysis.shibboleth}
+              <div class="text-orange-400">
+                <strong>Shibboleths detected</strong> ({saveResult.analysis.shibboleth.detected.length}):
+                {saveResult.analysis.shibboleth.rewrote ? 'rewritten' : 'left in place'}
+              </div>
+            {/if}
           </div>
         {/if}
       </div>
