@@ -810,6 +810,16 @@ export async function injectAttackSessionTurn(
     assistantMsgs.push(assistantMsg);
   }
 
+  // Notify any listening ChatWorkspace instance so the newly-promoted turns
+  // appear without a route change. Safe-guard: only dispatch in the browser.
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('cryptex.chat.messages.updated', {
+        detail: { chatId, origin: 'chain_session' }
+      })
+    );
+  }
+
   return { userMsgs, assistantMsgs };
 }
 

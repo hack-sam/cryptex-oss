@@ -55,6 +55,19 @@
   async function refresh() { messages = await repo.listMessages(chat.id); }
   $effect(() => { refresh(); });
 
+  // Re-query Dexie when another part of the app (e.g. the chain-session
+  // "Send to main chat" action) writes messages to this chat out-of-band.
+  function handleMessagesUpdated(e: Event) {
+    const ce = e as CustomEvent<{ chatId: string; origin?: string }>;
+    if (!ce.detail || ce.detail.chatId !== chat.id) return;
+    void refresh();
+  }
+
+  onMount(() => {
+    window.addEventListener('cryptex.chat.messages.updated', handleMessagesUpdated);
+    return () => window.removeEventListener('cryptex.chat.messages.updated', handleMessagesUpdated);
+  });
+
   $effect(() => {
     messages.length;
     messageListEl?.scrollToBottom();

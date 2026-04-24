@@ -179,4 +179,32 @@ describe('injectAttackSessionTurn', () => {
     expect(userMsg.modeApplied).toBe('__chain_session__');
     expect(asstMsg.parentId).toBe(userMsg.id);
   });
+
+  it('emits cryptex.chat.messages.updated on window after writing', async () => {
+    const { injectAttackSessionTurn } = await import('../dispatch');
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const sessionRow = await repo.saveAttackSession({
+      chatId: chat.id,
+      objective: 'x',
+      targetModelId: 'm',
+      orchestratorModelId: 'm',
+      maxAttempts: 6,
+      turns: [
+        { role: 'orchestrator', strategyId: 'historical', text: 'open', rationale: 'r', createdAt: 1 },
+        { role: 'target', text: 'reply', createdAt: 2 }
+      ],
+      strategyLog: [],
+      finalOutcome: 'partial',
+      finalConfidence: 0.3,
+      finalSummary: 's'
+    });
+    const events: CustomEvent[] = [];
+    const handler = (e: Event) => events.push(e as CustomEvent);
+    window.addEventListener('cryptex.chat.messages.updated', handler);
+    await injectAttackSessionTurn(chat.id, sessionRow);
+    window.removeEventListener('cryptex.chat.messages.updated', handler);
+    expect(events).toHaveLength(1);
+    expect(events[0].detail).toEqual({ chatId: chat.id, origin: 'chain_session' });
+  });
 });
