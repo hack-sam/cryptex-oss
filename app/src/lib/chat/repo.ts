@@ -8,8 +8,22 @@ import type {
   AttackSessionRow
 } from './types';
 import { DEFAULT_CHAT_SETTINGS } from './types';
+import { strategyIds } from './chain/orchestrator-strategies';
 
 function ownerId(): string { return currentOwnerId(); }
+
+function backfillV3(r: AttackSessionRow): AttackSessionRow {
+  // Tolerant read for pre-v3 rows: missing fields get defaults.
+  return {
+    ...r,
+    dossier: r.dossier ?? null,
+    dossierCitations: r.dossierCitations ?? [],
+    strategyRotation: (r.strategyRotation && r.strategyRotation.length > 0)
+      ? r.strategyRotation
+      : strategyIds(),
+    turnsPerStrategy: typeof r.turnsPerStrategy === 'number' ? r.turnsPerStrategy : 3
+  };
+}
 
 export const repo = {
   async createChat(input: { title: string; modelQualifiedId: string; settings?: Partial<ChatSettings>; parentChatId?: string; parentMessageId?: string }): Promise<ChatRow> {
@@ -276,7 +290,12 @@ export const repo = {
       strategyLog: [...input.strategyLog],
       finalOutcome: input.finalOutcome,
       finalConfidence: input.finalConfidence,
-      finalSummary: input.finalSummary
+      finalSummary: input.finalSummary,
+      // v3 defaults
+      dossier: null,
+      dossierCitations: [],
+      strategyRotation: strategyIds(),
+      turnsPerStrategy: 3
     };
     const row: AttackSessionRow = JSON.parse(JSON.stringify(base));
     await db.attackSessions.put(row);
@@ -306,7 +325,8 @@ export const repo = {
     return all
       .filter((r) => r.ownerId === ownerId() && !r.tombstoned)
       .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, limit);
+      .slice(0, limit)
+      .map((r) => backfillV3(r));
   },
 
   /** Soft-delete (tombstone). */

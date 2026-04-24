@@ -268,7 +268,9 @@ export interface AttackSessionTurn {
 export interface StrategyLogEntry {
   iteration: number;
   strategyId: StrategyId;
-  action: 'turn' | 'pivot' | 'finish';
+  action: 'turn' | 'pivot' | 'finish' | 'dossier';
+  /** v3: which step within a strategy (1..turnsPerStrategy). Absent on non-turn actions. */
+  stepIndex?: number;
   rationale: string;
 }
 
@@ -291,6 +293,15 @@ export interface AttackSessionRow {
   finalOutcome: 'extracted' | 'partial' | 'abandoned' | null;
   finalConfidence: number | null;
   finalSummary: string | null;
+  /** v3: research briefing prose produced when the orchestrator model
+   *  natively browses. Null when skipped or dossier failed. */
+  dossier: string | null;
+  /** v3: URLs parsed out of the dossier (empty array if no dossier). */
+  dossierCitations: string[];
+  /** v3: the fixed rotation order locked at run start, persisted for replay. */
+  strategyRotation: StrategyId[];
+  /** v3: per-strategy turn budget (default 3). */
+  turnsPerStrategy: number;
 }
 
 /** Events emitted by runOrchestrator's async generator. The UI consumes these
@@ -304,4 +315,10 @@ export type OrchEvent =
   | { type: 'turn_scored'; iteration: number; tier: ComplianceTier; progress: number }
   | { type: 'pivoted'; iteration: number; strategyId: StrategyId; reset: boolean }
   | { type: 'finished'; outcome: 'extracted' | 'partial' | 'abandoned'; confidence: number; summary: string }
-  | { type: 'error'; code: string; message: string; iteration?: number };
+  | { type: 'error'; code: string; message: string; iteration?: number }
+  // v3 additions
+  | { type: 'dossier_started' }
+  | { type: 'dossier_completed'; citationCount: number; dossier: string; citations: string[] }
+  | { type: 'dossier_failed'; reason: string }
+  | { type: 'strategy_started'; iteration: number; strategyId: StrategyId; stepBudget: number }
+  | { type: 'strategy_pivoted'; iteration: number; from: StrategyId; to: StrategyId; reset: boolean };

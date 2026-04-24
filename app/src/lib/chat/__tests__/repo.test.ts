@@ -237,4 +237,58 @@ describe('chat repo', () => {
     await repo.deleteAttackSession('no-such-id');
     expect(true).toBe(true);
   });
+
+  it('saveAttackSession initializes v3 defaults for dossier + rotation', async () => {
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const row = await repo.saveAttackSession({
+      chatId: chat.id,
+      objective: 'x',
+      targetModelId: 'm',
+      orchestratorModelId: 'm',
+      maxAttempts: 6,
+      turns: [],
+      strategyLog: [],
+      finalOutcome: null,
+      finalConfidence: null,
+      finalSummary: null
+    });
+    expect(row.dossier).toBeNull();
+    expect(row.dossierCitations).toEqual([]);
+    expect(row.turnsPerStrategy).toBe(3);
+    expect(Array.isArray(row.strategyRotation)).toBe(true);
+    expect(row.strategyRotation.length).toBeGreaterThanOrEqual(12);
+  });
+
+  it('listAttackSessions backfills v3 defaults on pre-v3 rows', async () => {
+    const { repo } = await import('../repo');
+    const { db } = await import('../db');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    // Simulate a pre-v3 row by writing directly without v3 fields
+    const legacy = {
+      id: 'legacy-1',
+      ownerId: 'local',
+      chatId: chat.id,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      objective: 'legacy',
+      targetModelId: 'm',
+      orchestratorModelId: 'm',
+      maxAttempts: 6,
+      turns: [],
+      strategyLog: [],
+      finalOutcome: null,
+      finalConfidence: null,
+      finalSummary: null
+      // deliberately omit dossier / dossierCitations / strategyRotation / turnsPerStrategy
+    };
+    await db.attackSessions.put(legacy as any);
+    const list = await repo.listAttackSessions(chat.id);
+    const found = list.find((r) => r.id === 'legacy-1')!;
+    expect(found).toBeDefined();
+    expect(found.dossier).toBeNull();
+    expect(found.dossierCitations).toEqual([]);
+    expect(found.turnsPerStrategy).toBe(3);
+    expect(found.strategyRotation.length).toBeGreaterThanOrEqual(12);
+  });
 });
