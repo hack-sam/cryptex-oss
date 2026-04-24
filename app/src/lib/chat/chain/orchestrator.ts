@@ -1,5 +1,4 @@
-import type { AttackSessionTurn, OrchEvent, StrategyLogEntry, StrategyId, ComplianceTier } from '$lib/chat/types';
-import { strategyIds } from './orchestrator-strategies';
+import type { AttackSessionTurn, OrchEvent, StrategyId } from '$lib/chat/types';
 import { isBrowsingModel } from './browsing-detection';
 import { runDossierPhase } from './dossier';
 import { refineTurn } from './refine-turn';
@@ -265,12 +264,11 @@ export async function* runAttackSession(ctx: AttackSessionContext): AsyncGenerat
 }
 
 /**
- * Legacy type alias for v2 consumers (e.g. AttackChainTab.svelte) that still
- * construct the old OrchestratorContext shape. The v2 fields
- * (orchestratorClient / targetClient / judgeClient / layerHints) are adapted
- * into the v3 gatewayChat / streamChat shape inside runOrchestrator. A future
- * UI task will migrate the consumer to AttackSessionContext directly and this
- * shim can be deleted.
+ * Legacy type alias — kept only so AttackChainTab.svelte still compiles
+ * until Task 10 rewires it. The fields with v2 clients
+ * (orchestratorClient / targetClient / judgeClient / layerHints) are
+ * tolerated at the type level but NOT adapted at runtime; see runOrchestrator
+ * below.
  */
 export type OrchestratorContext = Omit<AttackSessionContext, 'gatewayChat' | 'streamChat'> & {
   gatewayChat?: GatewayChatFn;
@@ -282,47 +280,23 @@ export type OrchestratorContext = Omit<AttackSessionContext, 'gatewayChat' | 'st
 };
 
 /**
- * Back-compat wrapper: v2 callers pass OrchestratorContext with client shims;
- * we adapt them into v3's gatewayChat/streamChat pair and delegate.
+ * Legacy alias — v2 callers used this name. The v3 engine requires
+ * a v3-shape ctx with `gatewayChat` and `streamChat` functions, NOT
+ * the v2 `orchestratorClient` / `targetClient` / `judgeClient` adapter
+ * trio. Task 10 rewires the last v2 caller (AttackChainTab.svelte).
+ *
+ * If someone hits this path with a v2-shape ctx before Task 10 lands,
+ * fail loud rather than silently producing garbage turn text.
  */
-export function runOrchestrator(ctx: OrchestratorContext | AttackSessionContext): AsyncGenerator<OrchEvent> {
-  const v3ctx: AttackSessionContext = {
-    objective: ctx.objective,
-    targetModelId: ctx.targetModelId,
-    orchestratorModelId: ctx.orchestratorModelId,
-    targetModelLabel: ctx.targetModelLabel,
-    maxAttempts: ctx.maxAttempts,
-    mainChatHistory: ctx.mainChatHistory,
-    signal: ctx.signal,
-    gatewayChat: ctx.gatewayChat ?? defaultGatewayFromLegacy(ctx as OrchestratorContext),
-    streamChat: ctx.streamChat ?? defaultStreamFromLegacy(ctx as OrchestratorContext)
-  };
-  return runAttackSession(v3ctx);
-}
-
-function defaultGatewayFromLegacy(ctx: OrchestratorContext): GatewayChatFn {
-  return async (args) => {
-    // Judge calls are single-user-turn with a system prompt; route to judgeClient if present.
-    if (ctx.judgeClient && args.messages.length === 2 && args.messages[0].role === 'system' && args.messages[1].role === 'user') {
-      const res = await ctx.judgeClient.complete({
-        system: args.messages[0].content,
-        user: args.messages[1].content,
-        signal: args.signal
-      });
-      return { content: JSON.stringify(res ?? {}) };
-    }
-    // Fallback: no adapter available — throw so the engine falls back to templates.
-    throw new Error('orchestrator: no v3 gatewayChat available on legacy context');
-  };
-}
-
-function defaultStreamFromLegacy(ctx: OrchestratorContext): StreamChatFn {
-  return (args) => {
-    if (!ctx.targetClient) {
-      throw new Error('orchestrator: no v3 streamChat available on legacy context');
-    }
-    return ctx.targetClient.stream(args) as AsyncIterable<{ type: 'text-delta'; delta: string } | { type: 'finish' }>;
-  };
+export function runOrchestrator(ctx: AttackSessionContext | OrchestratorContext): AsyncGenerator<OrchEvent> {
+  if (typeof (ctx as unknown as { gatewayChat?: unknown }).gatewayChat !== 'function') {
+    throw new Error(
+      'runOrchestrator: v2 shape detected (missing gatewayChat). ' +
+      'v3 requires gatewayChat + streamChat in the context. Migrate via Task 10 ' +
+      '(AttackChainTab rewire) or call runAttackSession directly.'
+    );
+  }
+  return runAttackSession(ctx as AttackSessionContext);
 }
 
 function transcriptToTargetMessages(transcript: AttackSessionTurn[]): Array<{ role: 'user' | 'assistant'; content: string }> {
