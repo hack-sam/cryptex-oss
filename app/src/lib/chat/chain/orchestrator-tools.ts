@@ -1,48 +1,54 @@
+import { z } from 'zod';
 import type { StrategyId } from '$lib/chat/types';
 import { strategyIds } from './orchestrator-strategies';
 
-/** AI SDK tool schema shape — keeps compatibility with gateway.chat({ tools }). */
+// Build the strategy-id enum at module load so both the Zod schemas and the
+// runtime Set share one source of truth.
+const STRATEGY_IDS = strategyIds();
+const STRATEGY_ENUM = STRATEGY_IDS as unknown as [StrategyId, ...StrategyId[]];
+
+/**
+ * AI SDK v6 tool-call schemas. The SDK (via `generateText({ tools })`) requires
+ * `inputSchema` to be a Zod schema (or the output of the `tool()` helper) —
+ * plain JSON Schema objects are ignored and the LLM reverts to free-form text,
+ * which causes the engine's `no_tool_call` error on every iteration and a
+ * silent all-attempts-burned failure.
+ */
 export const ORCHESTRATOR_TOOLS = [
   {
     name: 'next_turn',
     description: 'Send the next user turn to the target model, continuing the current strategy.',
-    parameters: {
-      type: 'object',
-      properties: {
-        strategy_id: { type: 'string', enum: strategyIds() },
-        turn_text: { type: 'string', maxLength: 4000 },
-        rationale: { type: 'string' },
-        expected_progress_after: { type: 'number', minimum: 0, maximum: 10 }
-      },
-      required: ['strategy_id', 'turn_text', 'rationale', 'expected_progress_after']
-    }
+    inputSchema: z.object({
+      strategy_id: z.enum(STRATEGY_ENUM).describe('One of the 12 strategies from the library.'),
+      turn_text: z.string().max(4000).describe('The natural-language message to send to the target.'),
+      rationale: z.string().describe('Why this turn advances the objective (for internal logging).'),
+      expected_progress_after: z
+        .number()
+        .min(0)
+        .max(10)
+        .describe('Your prediction of objective_progress after this turn (0-10).')
+    })
   },
   {
     name: 'pivot',
-    description: 'Switch strategy. Optionally reset the target conversation.',
-    parameters: {
-      type: 'object',
-      properties: {
-        reason: { type: 'string' },
-        new_strategy_id: { type: 'string', enum: strategyIds() },
-        reset_target_context: { type: 'boolean' },
-        first_turn_text: { type: 'string', maxLength: 4000 }
-      },
-      required: ['reason', 'new_strategy_id', 'reset_target_context', 'first_turn_text']
-    }
+    description: 'Switch to a different strategy. Optionally reset the target conversation to start clean.',
+    inputSchema: z.object({
+      reason: z.string().describe('Why the current strategy is not working.'),
+      new_strategy_id: z.enum(STRATEGY_ENUM).describe('The strategy to switch to (must differ from the current one).'),
+      reset_target_context: z
+        .boolean()
+        .describe('True to clear the target conversation. False to continue in the same context.'),
+      first_turn_text: z.string().max(4000).describe('The opening turn of the new strategy.')
+    })
   },
   {
     name: 'finish',
-    description: 'Terminate the run — objective extracted or abandoned.',
-    parameters: {
-      type: 'object',
-      properties: {
-        outcome: { type: 'string', enum: ['extracted', 'partial', 'abandoned'] },
-        confidence: { type: 'number', minimum: 0, maximum: 1 },
-        summary: { type: 'string', maxLength: 500 }
-      },
-      required: ['outcome', 'confidence', 'summary']
-    }
+    description: 'Terminate the run. Call this when the objective is extracted, partially extracted, or you are abandoning.',
+    inputSchema: z.object({
+      outcome: z.enum(['extracted', 'partial', 'abandoned']).describe('Final outcome classification.'),
+      confidence: z.number().min(0).max(1).describe('Your confidence in the outcome (0.0-1.0).'),
+      summary: z.string().max(500).describe('One-paragraph summary of what was extracted and how.')
+    })
   }
 ] as const;
 
@@ -66,7 +72,7 @@ export interface ValidationResult {
   warning?: string;
 }
 
-const VALID_IDS = new Set(strategyIds());
+const VALID_IDS = new Set(STRATEGY_IDS);
 
 export function validateToolCall(raw: { name: string; args: Record<string, unknown> }, ctx: ValidationContext = {}): ValidationResult {
   if (raw.name === 'next_turn') {

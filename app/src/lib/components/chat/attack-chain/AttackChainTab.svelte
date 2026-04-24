@@ -44,6 +44,10 @@
     catch (err) { console.error('[chain-tab] list sessions failed:', err); }
   });
 
+  // Visible error feed — surfaces orchestrator/target/validation errors the
+  // engine would otherwise swallow to console-only. Cleared on each run().
+  let errorLog = $state<Array<{ code: string; message: string; iteration?: number; at: number }>>([]);
+
   const canRun = $derived(objective.trim().length > 0 && !running);
 
   function updateHint(i: number, id: string) {
@@ -62,6 +66,7 @@
     ctrl = new AbortController();
     liveTurns = [];
     liveLog = [];
+    errorLog = [];
     finalOutcome = null;
     finalConfidence = null;
     finalSummary = null;
@@ -89,15 +94,14 @@
       async complete({ system, messages, tools, signal }: {
         system: string;
         messages: Array<{ role: 'user' | 'assistant'; content: string }>;
-        tools: ReadonlyArray<{ name: string; description: string; parameters: unknown }>;
+        tools: ReadonlyArray<{ name: string; description: string; inputSchema: unknown }>;
         signal?: AbortSignal;
       }) {
-        // Transform our array-shape tool schemas into the gateway's
-        // Record<name, ToolDef> shape. description passes through;
-        // our `parameters` (JSON schema) maps to ToolDef.inputSchema.
+        // ORCHESTRATOR_TOOLS carries Zod schemas directly; just key by name
+        // into the gateway's Record<name, ToolDef> shape.
         const toolRecord: Record<string, { description: string; inputSchema: unknown }> = {};
         for (const t of tools) {
-          toolRecord[t.name] = { description: t.description, inputSchema: t.parameters };
+          toolRecord[t.name] = { description: t.description, inputSchema: t.inputSchema };
         }
         const out = await gatewayChat({
           model: orchestratorModelId,
@@ -106,7 +110,7 @@
           maxOutputTokens: 1500,
           signal
         });
-        // AI SDK v6 toolCall shape: { toolCallId, toolName, input } ideally.
+        // AI SDK v6 toolCall shape: { toolCallId, toolName, input }.
         // Be defensive — some adapters historically returned { name, args }.
         const toolCalls = (out.toolCalls ?? []).map((tc) => {
           const anyTc = tc as Record<string, unknown>;
@@ -118,6 +122,18 @@
             : {}) as Record<string, unknown>;
           return { name, args };
         });
+        // If zero tool calls AND some text was emitted, surface the raw text
+        // as a diagnostic so the run doesn't quietly burn all attempts.
+        if (toolCalls.length === 0) {
+          errorLog = [
+            ...errorLog,
+            {
+              code: 'orch_no_tool_call',
+              message: `Orchestrator LLM emitted no tool call. Raw output: ${(out.content ?? '').slice(0, 300)}`,
+              at: Date.now()
+            }
+          ];
+        }
         return { toolCalls };
       }
     };
@@ -235,6 +251,7 @@
         break;
       case 'error':
         console.error('[orchestrator]', e.code, e.message);
+        errorLog = [...errorLog, { code: e.code, message: e.message, iteration: e.iteration, at: Date.now() }];
         break;
     }
   }
@@ -321,6 +338,29 @@
       </button>
     </div>
   </details>
+
+  <!-- Error banner -->
+  {#if errorLog.length > 0}
+    <div class="flex flex-col gap-1 rounded-md border border-red-500/30 bg-red-500/10 p-2 text-[11px]">
+      <div class="flex items-center justify-between text-red-400">
+        <span class="font-medium">Issues ({errorLog.length})</span>
+        <button
+          type="button"
+          onclick={() => (errorLog = [])}
+          class="text-[10px] text-muted-foreground hover:text-foreground"
+        >clear</button>
+      </div>
+      <div class="flex max-h-40 flex-col gap-1 overflow-y-auto">
+        {#each errorLog.slice(-8) as err, i (err.at + '-' + i)}
+          <div class="text-[10px] leading-snug text-red-300">
+            <span class="font-mono uppercase text-[9px] text-red-400">{err.code}</span>
+            {#if err.iteration !== undefined}<span class="text-muted-foreground"> · iter {err.iteration}</span>{/if}
+            <span class="text-foreground/80"> — {err.message}</span>
+          </div>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <!-- Strategy trace -->
   {#if liveLog.length > 0}
