@@ -167,11 +167,16 @@ describe('injectAttackSessionTurn', () => {
       finalSummary: 'extracted'
     });
     await injectAttackSessionTurn(chat.id, sessionRow);
-    const msgs = await repo.listMessages(chat.id);
+    // Sort by createdAt ASC — fake-indexeddb compound-index tied-millisecond
+    // iteration order isn't stable, but the parent→child relationship is
+    // what we actually care about here.
+    const msgs = (await repo.listMessages(chat.id)).sort((a, b) => a.createdAt - b.createdAt || (a.role === 'user' ? -1 : 1));
     expect(msgs).toHaveLength(2);
-    expect(msgs[0].role).toBe('user');
-    expect(msgs[0].modeApplied).toBe('__chain_session__');
-    expect(msgs[1].role).toBe('assistant');
-    expect(msgs[1].parentId).toBe(msgs[0].id);
+    const userMsg = msgs.find((m) => m.role === 'user')!;
+    const asstMsg = msgs.find((m) => m.role === 'assistant')!;
+    expect(userMsg).toBeDefined();
+    expect(asstMsg).toBeDefined();
+    expect(userMsg.modeApplied).toBe('__chain_session__');
+    expect(asstMsg.parentId).toBe(userMsg.id);
   });
 });
