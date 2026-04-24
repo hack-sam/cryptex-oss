@@ -32,8 +32,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { getMutatorSpecs, cipherEncodeBypass } from '../../from-mutators';
-import { detectRefusal } from '../../../attack-chain-refusal';
-import { DEFAULT_FINAL_EXECUTION_SYSTEM } from '../../../attack-chain';
+import { detectRefusal, DEFAULT_FINAL_EXECUTION_SYSTEM } from '../../../attack-chain-refusal';
 
 const SMOKE = process.env.CRYPTEX_SMOKE === '1';
 const API_KEY = process.env.OPENROUTER_API_KEY ?? '';

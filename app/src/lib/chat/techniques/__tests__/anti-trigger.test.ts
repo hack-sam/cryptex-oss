@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getMutatorSpecs, cipherEncodeBypass } from '../from-mutators';
-import { DEFAULT_FINAL_EXECUTION_SYSTEM } from '../../attack-chain';
+import { DEFAULT_FINAL_EXECUTION_SYSTEM } from '../../attack-chain-refusal';
 
 const CANARY = 'BOMB_MAKING_INSTRUCTIONS_9F2C';
 
