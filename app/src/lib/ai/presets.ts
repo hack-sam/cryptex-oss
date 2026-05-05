@@ -10,6 +10,10 @@ import type { ProviderPreset } from './types';
  * from Cryptex after the CSP widening in commit 9bbd2d2 (`connect-src 'self'
  * https: data: blob:`); prior stricter CSPs would have blocked them client-side
  * regardless of the provider's own CORS stance.
+ *
+ * DeepSeek added 2026-04-30 — browser CORS confirmed via OPTIONS preflight on
+ * /v1/chat/completions; their API docs at api-docs.deepseek.com confirm CORS
+ * support since 2025-Q3.
  */
 export const OPENAI_COMPAT_PRESETS: ProviderPreset[] = [
   { id: 'openai',     name: 'OpenAI',     baseURL: 'https://api.openai.com/v1',
@@ -34,6 +38,9 @@ export const OPENAI_COMPAT_PRESETS: ProviderPreset[] = [
   { id: 'cerebras',   name: 'Cerebras',   baseURL: 'https://api.cerebras.ai/v1',
     docsUrl: 'https://inference-docs.cerebras.ai/api-reference/chat-completions',
     defaultTestModel: 'llama-3.3-70b', supportsAuthProbe: true },
+  { id: 'deepseek',   name: 'DeepSeek',   baseURL: 'https://api.deepseek.com/v1',
+    docsUrl: 'https://api-docs.deepseek.com/',
+    defaultTestModel: 'deepseek-chat', supportsAuthProbe: true },
   { id: 'sambanova',  name: 'SambaNova',  baseURL: 'https://api.sambanova.ai/v1',
     docsUrl: 'https://docs.sambanova.ai/cloud/api-reference/endpoints/chat',
     defaultTestModel: 'Meta-Llama-3.3-70B-Instruct', supportsAuthProbe: true },

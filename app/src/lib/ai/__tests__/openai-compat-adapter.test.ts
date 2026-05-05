@@ -114,3 +114,20 @@ describe('validateKey', () => {
     await expect(a.validateKey('k')).rejects.toMatchObject({ category: 'cors' });
   });
 });
+
+describe('OPENAI_COMPAT_PRESETS — DeepSeek', () => {
+  it('includes DeepSeek with the right baseURL + defaults', async () => {
+    const { OPENAI_COMPAT_PRESETS, getPreset } = await import('../presets');
+    const ds = getPreset('deepseek');
+    expect(ds).toBeDefined();
+    expect(ds?.name).toBe('DeepSeek');
+    expect(ds?.baseURL).toBe('https://api.deepseek.com/v1');
+    expect(ds?.docsUrl).toBe('https://api-docs.deepseek.com/');
+    expect(ds?.defaultTestModel).toBe('deepseek-chat');
+    expect(ds?.supportsAuthProbe).toBe(true);
+
+    // And it must appear in the array (not just the lookup helper).
+    const ids = OPENAI_COMPAT_PRESETS.map((p) => p.id);
+    expect(ids).toContain('deepseek');
+  });
+});
