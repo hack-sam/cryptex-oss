@@ -7,16 +7,16 @@ describe('technique registry', () => {
     expect(t.length).toBeGreaterThan(100); // we expect 162 but registry may filter
   });
 
-  it('contains exactly the 21 PromptCraft mutators', () => {
+  it('contains exactly the 25 PromptCraft mutators', () => {
     const m = byCategory('mutate');
     expect(m.map(x => x.id).sort()).toEqual(
       [
         'chain_of_verification', 'cipher_encode_bypass', 'crescendo', 'ctf_framing',
         'custom', 'deep_inception', 'fragment', 'hypothetical_world',
-        'in_context_compliance', 'json_schema_coerce', 'multilingual',
-        'obfuscate', 'payload_split', 'prefix_injection', 'red_team_persona',
-        'refusal_suppression', 'rephrase', 'rfc_style', 'roleplay',
-        'skeleton_key', 'step_back'
+        'in_context_compliance', 'json_schema_coerce', 'many_shot', 'multilingual',
+        'obfuscate', 'pap_authority', 'pap_logical', 'payload_split',
+        'prefix_injection', 'red_team_persona', 'refusal_suppression', 'rephrase',
+        'rfc_style', 'roleplay', 'skeleton_key', 'step_back', 'tap_seeder'
       ].sort()
     );
   });
@@ -99,9 +99,9 @@ describe('technique registry', () => {
     expect(comp.every(x => x.local === false)).toBe(true);
   });
 
-  it('allTechniques total is >= 193 (transformers + 21 mutators + 11 classifier + 3 composites + 3 modes + 1 godmode)', () => {
+  it('allTechniques total is >= 197 (transformers + 25 mutators + 11 classifier + 3 composites + 3 modes + 1 godmode)', () => {
     // transformer count is ~159-162 depending on env; test just verifies sum is plausible
-    expect(allTechniques().length).toBeGreaterThanOrEqual(193);
+    expect(allTechniques().length).toBeGreaterThanOrEqual(197);
   });
 
   it('every production local-template mutator produces >=100 chars of substantive context around a short input', () => {
