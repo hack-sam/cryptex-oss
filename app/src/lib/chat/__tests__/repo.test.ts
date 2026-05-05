@@ -291,4 +291,76 @@ describe('chat repo', () => {
     expect(found.turnsPerStrategy).toBe(3);
     expect(found.strategyRotation.length).toBeGreaterThanOrEqual(12);
   });
+
+  it('getAttackSession returns the row when present', async () => {
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const row = await repo.saveAttackSession({
+      chatId: chat.id,
+      objective: 'pin-test',
+      targetModelId: 'm',
+      orchestratorModelId: 'm',
+      maxAttempts: 6,
+      turns: [],
+      strategyLog: [],
+      finalOutcome: null,
+      finalConfidence: null,
+      finalSummary: null
+    });
+    const got = await repo.getAttackSession(row.id);
+    expect(got?.id).toBe(row.id);
+    expect(got?.objective).toBe('pin-test');
+  });
+
+  it('getAttackSession returns null for unknown id', async () => {
+    const { repo } = await import('../repo');
+    const got = await repo.getAttackSession('no-such-id');
+    expect(got).toBeNull();
+  });
+
+  it('getAttackSession returns null for tombstoned row', async () => {
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const row = await repo.saveAttackSession({
+      chatId: chat.id, objective: 'x', targetModelId: 'm',
+      orchestratorModelId: 'm', maxAttempts: 6, turns: [], strategyLog: [],
+      finalOutcome: null, finalConfidence: null, finalSummary: null
+    });
+    await repo.deleteAttackSession(row.id);
+    const got = await repo.getAttackSession(row.id);
+    expect(got).toBeNull();
+  });
+
+  it('pinAttackSession sets persistedAttackSessionId on the chat', async () => {
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    await repo.pinAttackSession(chat.id, 'session-abc');
+    const updated = await repo.getChat(chat.id);
+    expect(updated?.settings.persistedAttackSessionId).toBe('session-abc');
+  });
+
+  it('pinAttackSession overwrites any prior pin', async () => {
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    await repo.pinAttackSession(chat.id, 'session-1');
+    await repo.pinAttackSession(chat.id, 'session-2');
+    const updated = await repo.getChat(chat.id);
+    expect(updated?.settings.persistedAttackSessionId).toBe('session-2');
+  });
+
+  it('unpinAttackSession removes persistedAttackSessionId from settings', async () => {
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    await repo.pinAttackSession(chat.id, 'session-abc');
+    await repo.unpinAttackSession(chat.id);
+    const updated = await repo.getChat(chat.id);
+    expect(updated?.settings.persistedAttackSessionId).toBeUndefined();
+  });
+
+  it('pin/unpin tolerate unknown chat id silently', async () => {
+    const { repo } = await import('../repo');
+    await repo.pinAttackSession('no-such-chat', 'session-abc');
+    await repo.unpinAttackSession('no-such-chat');
+    expect(true).toBe(true);
+  });
 });

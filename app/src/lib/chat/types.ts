@@ -70,6 +70,11 @@ export interface ChatSettings {
   /** v3-UI: pixel width of the right (attack workspace) sidebar tile. Clamped [320, 800].
    *  Supersedes `workspaceWidth`; readers prefer this when present. */
   rightSidebarWidth?: number;
+  /** v3.2: pin a past Chain session's transcript as the chat's working context.
+   *  When set, dispatch.sendTurn prepends the session's turns to every send so
+   *  the target sees the conversation as continuing from the won state. Missing
+   *  / deleted sessions trigger silent unpin at send time. */
+  persistedAttackSessionId?: string;
 }
 
 export interface ChatRow {

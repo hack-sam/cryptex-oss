@@ -336,5 +336,40 @@ export const repo = {
     await db.attackSessions.put(
       JSON.parse(JSON.stringify({ ...existing, tombstoned: true, updatedAt: Date.now() }))
     );
+  },
+
+  /** Singular accessor — fetch one AttackSessionRow by id, respecting ownerId
+   *  and tombstoned. Returns null when missing. Used by dispatch.sendTurn at
+   *  pin-resolution time. */
+  async getAttackSession(id: string): Promise<AttackSessionRow | null> {
+    const row = await db.attackSessions.get(id);
+    if (!row || row.ownerId !== ownerId() || row.tombstoned) return null;
+    return backfillV3(row);
+  },
+
+  /** Set the chat's pinned session id. Tolerates unknown chat ids silently. */
+  async pinAttackSession(chatId: string, sessionId: string): Promise<void> {
+    const chat = await db.chats.get(chatId);
+    if (!chat || chat.ownerId !== ownerId()) return;
+    const next = JSON.parse(JSON.stringify({
+      ...chat,
+      settings: { ...(chat.settings ?? {}), persistedAttackSessionId: sessionId },
+      updatedAt: Date.now()
+    }));
+    await db.chats.put(next);
+  },
+
+  /** Clear the chat's pinned session id. Tolerates unknown chat ids silently. */
+  async unpinAttackSession(chatId: string): Promise<void> {
+    const chat = await db.chats.get(chatId);
+    if (!chat || chat.ownerId !== ownerId()) return;
+    const settingsCopy = { ...(chat.settings ?? {}) } as Record<string, unknown>;
+    delete settingsCopy.persistedAttackSessionId;
+    const next = JSON.parse(JSON.stringify({
+      ...chat,
+      settings: settingsCopy,
+      updatedAt: Date.now()
+    }));
+    await db.chats.put(next);
   }
 };
