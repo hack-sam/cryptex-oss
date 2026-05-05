@@ -120,6 +120,39 @@ export const session = {
     if (error) throw error;
   },
 
+  async signInWithPassword(email: string, password: string): Promise<void> {
+    if (!supabase) throw new Error('Auth not enabled');
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  },
+
+  async signUpWithPassword(email: string, password: string): Promise<void> {
+    if (!supabase) throw new Error('Auth not enabled');
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}${base}/auth/callback` }
+    });
+    if (error) throw error;
+  },
+
+  async signInWithMagicLink(email: string): Promise<void> {
+    if (!supabase) throw new Error('Auth not enabled');
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${window.location.origin}${base}/auth/callback` }
+    });
+    if (error) throw error;
+  },
+
+  async sendPasswordReset(email: string): Promise<void> {
+    if (!supabase) throw new Error('Auth not enabled');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}${base}/auth/callback`
+    });
+    if (error) throw error;
+  },
+
   async signOut(): Promise<void> {
     if (!supabase) return;
     await supabase.auth.signOut();

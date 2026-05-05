@@ -1,6 +1,7 @@
 <script lang="ts">
   import { session } from '$lib/auth/session.svelte';
   import Logo from '$lib/components/brand/Logo.svelte';
+  import { base } from '$app/paths';
 
   type Props = { feature?: string };
   let { feature = 'this feature' }: Props = $props();
@@ -36,6 +37,10 @@
   <h2 class="font-serif text-2xl tracking-tight">Sign in to use {feature}</h2>
   <p class="text-sm text-muted-foreground">Free — your keys stay on your device.</p>
   <div class="flex w-full flex-col gap-2">
+    <a
+      href="{base}/login"
+      class="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
+    >Sign in with email</a>
     <button
       type="button"
       onclick={google}
@@ -53,5 +58,8 @@
       Continue with GitHub
     </button>
   </div>
+  <p class="text-xs text-muted-foreground">
+    No account? <a href="{base}/signup" class="underline hover:text-foreground">Create one</a>
+  </p>
   {#if error}<p class="text-sm text-destructive">{error}</p>{/if}
 </div>

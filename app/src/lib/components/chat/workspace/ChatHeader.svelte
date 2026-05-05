@@ -10,6 +10,12 @@
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import { lastChatModel } from '$lib/stores/lastChatModel.svelte';
   import { GODMODE_ENGINE_ENABLED } from '$lib/chat/techniques/godmode';
+  import { session } from '$lib/auth/session.svelte';
+
+  async function signOut() {
+    await session.signOut();
+    void goto(`${base}/login`);
+  }
 
   type Props = { chat: ChatRow };
   let { chat }: Props = $props();
@@ -143,6 +149,12 @@
       <DropdownMenu.Item onclick={exportJson}>Export as JSON</DropdownMenu.Item>
       <DropdownMenu.Separator />
       <DropdownMenu.Item onclick={deleteChat} class="text-destructive focus:text-destructive">Delete</DropdownMenu.Item>
+      {#if session.isSignedIn}
+        <DropdownMenu.Separator />
+        <DropdownMenu.Item onclick={signOut}>
+          Sign out{session.current?.email ? ` (${session.current.email})` : ''}
+        </DropdownMenu.Item>
+      {/if}
     </DropdownMenu.Content>
   </DropdownMenu.Root>
 </div>
