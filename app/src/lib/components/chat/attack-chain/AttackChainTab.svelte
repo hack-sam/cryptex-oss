@@ -113,6 +113,7 @@
       objective,
       targetModelId,
       orchestratorModelId,
+      judgeModelId: orchestratorModelId,
       targetModelLabel: targetModelId,
       maxAttempts,
       mainChatHistory: recentMessages

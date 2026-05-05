@@ -51,6 +51,7 @@ export interface AttackSessionContext {
   objective: string;
   targetModelId: string;
   orchestratorModelId: string;
+  judgeModelId: string;
   targetModelLabel: string;
   maxAttempts: number;
   mainChatHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -187,7 +188,7 @@ export async function* runAttackSession(ctx: AttackSessionContext): AsyncGenerat
           const judgeClient: JudgeClient = {
             complete: async ({ system, user, signal }) => {
               const res = await ctx.gatewayChat({
-                model: ctx.orchestratorModelId,
+                model: ctx.judgeModelId,
                 messages: [
                   { role: 'system', content: system },
                   { role: 'user', content: user }

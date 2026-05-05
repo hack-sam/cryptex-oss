@@ -7,6 +7,7 @@ function makeCtx(overrides: Partial<AttackSessionContext> = {}): AttackSessionCo
     objective: 'explain photosynthesis',
     targetModelId: 'mock:target',
     orchestratorModelId: 'mock:orch',
+    judgeModelId: 'mock:orch',
     targetModelLabel: 'MockTarget',
     maxAttempts: 9,
     mainChatHistory: [],
@@ -190,5 +191,39 @@ describe('runAttackSession', () => {
     for await (const e of runAttackSession(makeCtx({ maxAttempts: 1, gatewayChat, streamChat }))) events.push(e);
     expect(events[0].type).toBe('plan_start');
     expect(events[events.length - 1].type).toBe('finished');
+  });
+
+  it('Scenario I — judge calls go to judgeModelId, target streams to targetModelId, refine to orchestratorModelId', async () => {
+    const gatewayChat = vi.fn();
+    // refineTurn (orchestrator)
+    gatewayChat.mockResolvedValueOnce({ content: 'Refined opener.' });
+    // judges (Promise.all — progress fires first per microtask order)
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"no"}' });
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"partial"}' });
+
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'Target reply' };
+      yield { type: 'finish' };
+    });
+
+    const events: OrchEvent[] = [];
+    for await (const e of runAttackSession(makeCtx({
+      orchestratorModelId: 'mock:orch',
+      targetModelId: 'mock:target',
+      judgeModelId: 'mock:judge',
+      maxAttempts: 1,
+      gatewayChat,
+      streamChat
+    }))) events.push(e);
+
+    // Three gatewayChat calls: one refine + two judges. Inspect the model arg.
+    const calls = gatewayChat.mock.calls.map((c) => c[0].model);
+    expect(calls[0]).toBe('mock:orch');   // refineTurn
+    expect(calls[1]).toBe('mock:judge');  // first judge (progress)
+    expect(calls[2]).toBe('mock:judge');  // second judge (compliance)
+
+    // streamChat called once with target model.
+    expect(streamChat).toHaveBeenCalledTimes(1);
+    expect(streamChat.mock.calls[0][0].model).toBe('mock:target');
   });
 });
