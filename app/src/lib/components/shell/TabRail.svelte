@@ -12,22 +12,26 @@
   import FlaskConical from 'lucide-svelte/icons/flask-conical';
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import Shield from 'lucide-svelte/icons/shield';
+  import Skull from 'lucide-svelte/icons/skull';
+  import Zap from 'lucide-svelte/icons/zap';
   import { onMount, tick } from 'svelte';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type Tab = { href: string; label: string; icon: any; status?: 'live' | 'soon' };
 
   const tabs: Tab[] = [
-    { href: '/transforms',     label: 'Transform',    icon: Wand,           status: 'live' },
-    { href: '/decode',         label: 'Decode',       icon: ScanSearch,     status: 'live' },
-    { href: '/emoji',          label: 'Emoji',        icon: Smile,          status: 'live' },
-    { href: '/gibberish',      label: 'Gibberish',    icon: MessageSquare,  status: 'live' },
-    { href: '/tokenizer',      label: 'Tokenizer',    icon: Hash,           status: 'live' },
-    { href: '/tokenade',       label: 'Tokenade',     icon: Bomb,           status: 'live' },
-    { href: '/bijection',      label: 'Bijection',    icon: ArrowLeftRight, status: 'live' },
-    { href: '/fuzzer',         label: 'Fuzzer',       icon: FlaskConical,   status: 'live' },
-    { href: '/promptcraft',    label: 'PromptCraft',  icon: Sparkles,       status: 'live' },
-    { href: '/anticlassifier', label: 'Anti-classifier', icon: Shield,      status: 'live' }
+    { href: '/transforms',           label: 'Transform',    icon: Wand,           status: 'live' },
+    { href: '/decode',               label: 'Decode',       icon: ScanSearch,     status: 'live' },
+    { href: '/emoji',                label: 'Emoji',        icon: Smile,          status: 'live' },
+    { href: '/gibberish',            label: 'Gibberish',    icon: MessageSquare,  status: 'live' },
+    { href: '/tokenizer',            label: 'Tokenizer',    icon: Hash,           status: 'live' },
+    { href: '/tokenade',             label: 'Tokenade',     icon: Bomb,           status: 'live' },
+    { href: '/bijection',            label: 'Bijection',    icon: ArrowLeftRight, status: 'live' },
+    { href: '/fuzzer',               label: 'Fuzzer',       icon: FlaskConical,   status: 'live' },
+    { href: '/promptcraft',          label: 'PromptCraft',  icon: Sparkles,       status: 'live' },
+    { href: '/anticlassifier',       label: 'Anti-classifier', icon: Shield,      status: 'live' },
+    { href: '/redteam/adv-suffix',    label: 'AdvSuffix',    icon: Skull,          status: 'live' },
+    { href: '/redteam/glitch-tokens', label: 'Glitch',       icon: Zap,            status: 'live' }
   ];
 
   let list: HTMLOListElement | undefined = $state();
