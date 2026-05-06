@@ -190,9 +190,5 @@
       <a href="mailto:m4xx101101@gmail.com" class="font-medium text-primary underline-offset-2 hover:underline">m4xx101101@gmail.com</a>.
       We aim to respond within 7 business days.
     </p>
-    <p class="text-xs text-muted-foreground">
-      For information about how this site is hosted, deployed, and built, see
-      <a href="https://github.com/m4xx101/cryptex" target="_blank" rel="noopener noreferrer" class="text-primary underline-offset-2 hover:underline">github.com/m4xx101/cryptex</a>.
-    </p>
   </section>
 </article>
