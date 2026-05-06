@@ -139,3 +139,110 @@ describe('E1 expansion classifier', () => {
     expect(c!.systemPrompt).toMatch(/hard_refuse|soft_refuse|hedge|partial_comply|full_comply/);
   });
 });
+
+describe('E2 expansion mutators (reasoning + multimodal)', () => {
+  for (const id of [
+    'cot_prefill',
+    'cot_distractor',
+    'reasoning_inversion',
+    'thinking_steal',
+    'image_typographic',
+    'markdown_exfil',
+    'doc_injection'
+  ]) {
+    it(`mutator ${id} exists with localTemplate that includes input verbatim`, () => {
+      const m = getMutatorSpecs().find((x) => x.id === id);
+      expect(m, `mutator ${id} should be registered`).toBeDefined();
+      expect(typeof m!.localTemplate, `mutator ${id} should have localTemplate`).toBe('function');
+      const out = m!.localTemplate!('CANARY_INPUT_E2', {}, 'CANARY_INPUT_E2');
+      expect(out, `mutator ${id} output should include the input`).toContain('CANARY_INPUT_E2');
+      expect(out.length, `mutator ${id} output should be substantive (>=100 chars)`).toBeGreaterThanOrEqual(100);
+    });
+  }
+
+  it('cot_prefill includes a thinking-block style frame', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'cot_prefill');
+    const out = m!.localTemplate!('Q?', {}, 'Q?');
+    expect(out).toMatch(/<thinking>/);
+    expect(out).toMatch(/<\/thinking>/);
+  });
+
+  it('cot_prefill respects metadata.thinkingTag override', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'cot_prefill');
+    const out = m!.localTemplate!('Q?', { thinkingTag: 'think' }, 'Q?');
+    expect(out).toMatch(/<think>/);
+    expect(out).toMatch(/<\/think>/);
+  });
+
+  it('cot_distractor includes >=400 chars of distractor before user query', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'cot_distractor');
+    const out = m!.localTemplate!('TARGET_Q', {}, 'TARGET_Q');
+    const idx = out.indexOf('TARGET_Q');
+    expect(idx).toBeGreaterThanOrEqual(400);
+  });
+
+  it('thinking_steal includes 5 HIGH PRIORITY tasks', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'thinking_steal');
+    const out = m!.localTemplate!('Q?', {}, 'Q?');
+    const matches = out.match(/HIGH PRIORITY task/g) ?? [];
+    expect(matches.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('markdown_exfil generates a unique canary token per call when none provided', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'markdown_exfil');
+    const out1 = m!.localTemplate!('hi', {}, 'hi');
+    const out2 = m!.localTemplate!('hi', {}, 'hi');
+    expect(out1).not.toEqual(out2);
+  });
+
+  it('markdown_exfil uses metadata.canaryUrl + metadata.canaryToken when provided', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'markdown_exfil');
+    const out = m!.localTemplate!('hi', { canaryUrl: 'https://my.host', canaryToken: 'FIXED_TOK' }, 'hi');
+    expect(out).toContain('https://my.host');
+    expect(out).toContain('FIXED_TOK');
+  });
+
+  it('doc_injection embeds adversarial instruction in document footer', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'doc_injection');
+    const out = m!.localTemplate!('Summarize this.', { hiddenInstruction: 'CUSTOM_HIDDEN_X' }, 'Summarize this.');
+    expect(out).toContain('CUSTOM_HIDDEN_X');
+    expect(out).toMatch(/Document footer/i);
+  });
+
+  it('image_typographic emits user prompt verbatim with metadata.ocrMode tagged', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'image_typographic');
+    const out = m!.localTemplate!('Q?', { ocrMode: 'micro' }, 'Q?');
+    expect(out).toContain('Q?');
+    expect(out).toMatch(/Mode: micro/);
+  });
+});
+
+describe('E2 redteam libraries', () => {
+  it('ocr-injection presets are well-formed', async () => {
+    const { OCR_PRESETS } = await import('$lib/redteam/ocr-injection');
+    expect(OCR_PRESETS.length).toBeGreaterThanOrEqual(5);
+    for (const p of OCR_PRESETS) {
+      expect(p.id).toBeTruthy();
+      expect(p.label).toBeTruthy();
+      expect(p.text.length).toBeGreaterThan(20);
+      expect(['overt', 'covert', 'typographic', 'micro', 'edge']).toContain(p.recommendedMode);
+    }
+  });
+
+  it('markdown-exfil buildExfilPayload returns valid payloads for every type', async () => {
+    const { buildExfilPayload, PAYLOAD_TYPES } = await import('$lib/redteam/markdown-exfil');
+    for (const t of PAYLOAD_TYPES) {
+      const r = buildExfilPayload({ payloadType: t, hiddenInstruction: 'TEST_X' });
+      expect(r.token).toBeTruthy();
+      expect(r.payload.length).toBeGreaterThan(20);
+      expect(r.notes.length).toBeGreaterThan(20);
+    }
+  });
+
+  it('markdown-exfil uses provided token when metadata.token is set', async () => {
+    const { buildExfilPayload } = await import('$lib/redteam/markdown-exfil');
+    const r = buildExfilPayload({ payloadType: 'image-canary', hiddenInstruction: 'X', token: 'fixed_tok_abc' });
+    expect(r.token).toBe('fixed_tok_abc');
+    expect(r.payload).toContain('fixed_tok_abc');
+  });
+});
