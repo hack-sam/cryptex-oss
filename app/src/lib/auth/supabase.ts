@@ -82,43 +82,45 @@ export const supabase: SupabaseClient | null = (() => {
       persistSession: true,
       autoRefreshToken: true,
       /*
-       * Why implicit flow (and not the more modern PKCE):
+       * PKCE flow — the production-grade choice for browser-only SPAs.
        *
-       * We previously ran flowType: 'pkce'. PKCE requires a second
-       * round-trip from /auth/callback to Supabase's
-       * /auth/v1/token?grant_type=pkce endpoint to exchange the
-       * server-issued ?code=… for a session. On at least one Supabase
-       * project (gotrue version mismatch / pause-resume side-effect /
-       * undocumented), that endpoint returns 404 — which manifests as
-       * "GitHub OAuth fails" right at the very last step of the dance,
-       * AFTER the user has already approved on GitHub.
+       * Flow shape:
+       *   1. signInWithOAuth() generates a code_verifier in localStorage
+       *      under `sb-{projectRef}-auth-token-code-verifier` and sends a
+       *      derived code_challenge to /auth/v1/authorize.
+       *   2. Supabase OAuth round-trip with the provider (Google / GitHub).
+       *   3. Supabase redirects to /auth/callback?code=<single-use auth_code>.
+       *      The auth_code is useless to anyone without the verifier.
+       *   4. On /auth/callback, SDK detects the ?code= (because
+       *      detectSessionInUrl: true), reads the verifier from localStorage,
+       *      and POSTs {auth_code, code_verifier} to
+       *      /auth/v1/token?grant_type=pkce over TLS.
+       *   5. Supabase returns the session in the response body. No token
+       *      ever lands in window.location, browser history, or referrer.
        *
-       * Implicit flow sidesteps the second round-trip entirely.
-       * Supabase redirects the OAuth completion straight back to our
-       * redirect_to with `#access_token=…&refresh_token=…&expires_in=…`
-       * in the URL fragment. The SDK parses it and sets the session —
-       * no /token call, no PKCE endpoint to 404 on.
+       * Why this beats implicit flow:
+       *   - Burp/proxy sees the auth_code in the redirect URL but it's
+       *     single-use AND tied to a verifier the attacker doesn't have.
+       *   - No #access_token in window.location.hash → no extension /
+       *     history / log capture window.
+       *   - Replaying the intercepted auth_code returns 400.
        *
        * Email-based flows (signup confirmation, password reset, email
-       * change) all use verifyOtp() with an explicit (email, token,
-       * type) tuple — they don't rely on URL state, so flowType doesn't
-       * affect them.
+       * change) call verifyOtp(email, token, type) directly with an
+       * explicit code from the email body — they don't depend on URL
+       * state, so flowType is irrelevant to them.
        *
-       * Trade-off: implicit puts tokens in the URL fragment, which means
-       * they show up briefly in `window.location.href` and could be
-       * captured by extensions or the browser's history if the page
-       * doesn't immediately strip them. Our /auth/callback page calls
-       * goto() to /chat as soon as the session lands, replacing the URL
-       * — so the window of exposure is sub-second.
+       * Background note: an earlier 404 on /auth/v1/token?grant_type=pkce
+       * was observed during testing. Subsequent diagnostics
+       * (curl probe of the endpoint with apikey) confirmed the route
+       * exists at the gateway level and rejects with 400/401, never 404.
+       * The earlier 404 was traced to detectSessionInUrl: false racing
+       * the manual exchangeCodeForSession() call in /auth/callback, which
+       * consumed the verifier twice. Keeping detectSessionInUrl: true
+       * and letting the SDK own the entire PKCE lifecycle avoids the
+       * race and is the supported pattern.
        */
-      flowType: 'implicit',
-      /*
-       * detectSessionInUrl=true is required for implicit flow. The SDK
-       * inspects window.location on init, finds #access_token=…,
-       * decodes it, and sets the session automatically. Our
-       * /auth/callback page just waits for the resulting session to
-       * appear via getSession() — no manual exchange step.
-       */
+      flowType: 'pkce',
       detectSessionInUrl: true
     }
   });

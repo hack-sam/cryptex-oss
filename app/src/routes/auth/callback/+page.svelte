@@ -23,12 +23,15 @@
     }
 
     /*
-     * Implicit flow: the Supabase SDK auto-parses the URL on init when
-     * `detectSessionInUrl: true` is set in the client config. By the time
-     * THIS onMount runs, one of three things has happened:
+     * PKCE flow: the Supabase SDK detects ?code=… on /auth/callback,
+     * reads the code_verifier from localStorage, posts to
+     * /auth/v1/token?grant_type=pkce, and sets the session — all
+     * automatically because detectSessionInUrl: true. By the time THIS
+     * onMount runs, one of three things has happened:
      *
-     *  1. URL had #access_token=… → SDK already set the session. Visible
-     *     via supabase.auth.getSession(). We redirect to /chat.
+     *  1. URL had ?code=… → SDK exchanged it server-side and set the
+     *     session. Visible via supabase.auth.getSession(). Redirect to
+     *     /chat. No token ever lands in window.location.
      *  2. URL had ?error=… (provider rejection / consent denied / link
      *     expired) → no session set. Show the right recovery UI.
      *  3. Bare URL (user hit /auth/callback by hand) → no session, no

@@ -75,8 +75,11 @@
     error = null;
     try {
       await session.signInWithGoogle();
-    } catch (e) {
-      error = (e as Error).message;
+    } catch {
+      // Generic error — never echo provider strings ("OAuth provider not
+      // enabled", "redirect_to mismatch", rate-limit shape, etc) since
+      // those help an attacker fingerprint the auth config.
+      error = 'Sign-in could not complete. Try again.';
       loading = false;
       busyProvider = null;
     }
@@ -88,8 +91,8 @@
     error = null;
     try {
       await session.signInWithGitHub();
-    } catch (e) {
-      error = (e as Error).message;
+    } catch {
+      error = 'Sign-in could not complete. Try again.';
       loading = false;
       busyProvider = null;
     }

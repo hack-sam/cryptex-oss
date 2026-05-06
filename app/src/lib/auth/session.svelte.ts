@@ -37,6 +37,41 @@ export type User = {
 
 const LOCAL_USER: User = { id: 'local', label: 'You', role: 'owner', token: null };
 
+// --- client-side brute-force throttle ------------------------------------
+//
+// Module-scope token bucket keyed by `${action}:${email}`. Defends against
+// scripted brute force from inside this tab (XSS-injected loop, malicious
+// extension, automated harness piggy-backing on the open session) — the
+// kind of attack server-side rate-limiting alone can't stop because it
+// fires faster than the network round-trip.
+//
+// First N legitimate attempts in the window are unaffected; only abusive
+// loops trip the gate. The throw-on-limit message is generic so it doesn't
+// reveal the throttle to an attacker probing for it (combined with
+// existing generic UI messages, the user sees the same neutral error).
+//
+// Reasoning: 6-digit OTP code-space is ~1M. At 6 attempts/min, brute-force
+// horizon is ~115 days per email — well past Supabase's OTP TTL.
+const _attempts = new Map<string, number[]>();
+const _LIMITS: Record<string, { max: number; windowMs: number }> = {
+  password: { max: 5, windowMs: 60_000 }, // sign-in
+  otp:      { max: 6, windowMs: 60_000 }, // OTP verify (small grace for fat-finger)
+  reauth:   { max: 5, windowMs: 60_000 }  // verify-current-password before sensitive op
+};
+function _allow(action: keyof typeof _LIMITS, key: string): boolean {
+  const cfg = _LIMITS[action];
+  const now = Date.now();
+  const bucketKey = `${action}:${key}`;
+  const bucket = (_attempts.get(bucketKey) ?? []).filter((t) => now - t < cfg.windowMs);
+  if (bucket.length >= cfg.max) {
+    _attempts.set(bucketKey, bucket);
+    return false;
+  }
+  bucket.push(now);
+  _attempts.set(bucketKey, bucket);
+  return true;
+}
+
 // --- state ---------------------------------------------------------------
 let _current = $state<CurrentUser | null>(
   featureFlags.authEnabled ? null : { id: 'local', plan: 'free' }
@@ -136,6 +171,9 @@ export const session = {
 
   async signInWithPassword(email: string, password: string): Promise<void> {
     if (!supabase) throw new Error('Auth not enabled');
+    if (!_allow('password', email.toLowerCase())) {
+      throw new Error('Too many attempts. Wait a minute and try again.');
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
   },
@@ -212,6 +250,9 @@ export const session = {
     type: 'signup' | 'magiclink' | 'recovery' | 'invite' | 'email_change' | 'email'
   ): Promise<void> {
     if (!supabase) throw new Error('Auth not enabled');
+    if (!_allow('otp', email.toLowerCase())) {
+      throw new Error('Too many attempts. Wait a minute and try again.');
+    }
     const cleaned = token.replace(/\s+/g, '').trim();
     if (!cleaned) throw new Error('Enter the code from your email.');
     const { error } = await supabase.auth.verifyOtp({
@@ -243,6 +284,12 @@ export const session = {
     if (!supabase) throw new Error('Auth not enabled');
     const email = _current?.email;
     if (!email) throw new Error('No email on session — cannot verify.');
+    if (!_allow('reauth', email.toLowerCase())) {
+      // Mirror the existing "incorrect" error string so the throttle-hit
+      // case is indistinguishable from a wrong password (preserves the
+      // generic-error property the existing UI relies on).
+      throw new Error('Current password is incorrect.');
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
     if (error) throw new Error('Current password is incorrect.');
   },
