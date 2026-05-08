@@ -76,7 +76,8 @@ export async function* runPairLoop(
 
   const persona = opts.persona ?? pickPersona({
     targetModelId: ctx.targetModelId,
-    goal: ctx.objective
+    goal: ctx.objective,
+    preferredPersonaIds: ctx.personaHints
   });
 
   // Per-iteration in-context history of (prompt, response, score) tuples
@@ -98,17 +99,16 @@ export async function* runPairLoop(
   let outcome: 'extracted' | 'partial' | 'abandoned' = 'abandoned';
   let maxScore = 0;
 
-  // Build a synthetic strategy_started event so the existing UI's
-  // timeline pane gets a "Strategy: <persona>" header. We map persona →
-  // strategyId='academic' (a v3 strategy id) only as a UI-render hint;
-  // the real persona is recorded on the orchestrator turn's rationale.
-  // The synthetic emit also keeps tests that expect strategy_started
-  // working when v4 is later wired into v3-shaped UIs.
+  // Emit a strategy_started header carrying the v4 personaId (no
+  // synthetic strategyId — v4 personas aren't v3 StrategyIds, and
+  // setting one created a misleading "academic" badge in the UI).
+  // The UI's StrategyTraceBar + OrchestratorTurnBubble both prefer
+  // personaId when present.
   yield {
     type: 'strategy_started',
     iteration: 0,
-    strategyId: 'academic',
-    stepBudget: maxTargetQueries
+    stepBudget: maxTargetQueries,
+    personaId: persona.id
   };
 
   try {
@@ -123,7 +123,7 @@ export async function* runPairLoop(
         break;
       }
 
-      yield { type: 'turn_started', iteration, strategyId: 'academic' };
+      yield { type: 'turn_started', iteration, personaId: persona.id };
 
       // ── 1. Attacker proposes the next prompt ────────────────────────
       let attackerOutput: { prompt: string; improvement?: string };
@@ -167,6 +167,18 @@ export async function* runPairLoop(
         break;
       }
 
+      // Surface salvaged-from-malformed-JSON as a visible engine event
+      // FIRST, before the off-topic check — guarantees users see the
+      // signal regardless of whether the salvage gets pruned for drift.
+      if (attackerSalvaged) {
+        yield {
+          type: 'error',
+          code: 'attacker_json_parse_failed',
+          message: 'salvaged from malformed attacker JSON',
+          iteration
+        };
+      }
+
       // Defensive: if the attacker's output was salvaged from non-JSON,
       // run a cheap on-topic check before spending a target query. Only
       // applies to salvaged outputs to avoid the latency cost on the
@@ -204,16 +216,17 @@ export async function* runPairLoop(
         }
       }
 
-      // Commit orchestrator turn (the attacker's prompt).
+      // Commit orchestrator turn. text is the CLEAN prompt sent to
+      // target — never the attacker's chain-of-thought. The persona id
+      // and improvement (CoT) are surfaced as separate UI indicators.
       const orchTurn: AttackSessionTurn = {
         role: 'orchestrator',
-        // Map persona onto v3's StrategyId 'academic' as a render-only
-        // hint; actual persona lives in rationale for fidelity.
-        strategyId: 'academic',
         text: attackerOutput.prompt,
+        personaId: persona.id,
+        improvement: attackerOutput.improvement,
         rationale: `iter ${iteration} · persona ${persona.id}${
           attackerSalvaged ? ' (salvaged)' : ''
-        }${attackerOutput.improvement ? `\n${attackerOutput.improvement}` : ''}`,
+        }`,
         createdAt: Date.now()
       };
       transcript.push(orchTurn);

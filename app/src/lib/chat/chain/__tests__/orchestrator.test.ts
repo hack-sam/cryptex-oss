@@ -311,4 +311,40 @@ describe('runAttackSession', () => {
     expect(finished.outcome).toBe('abandoned');
     expect(finished.summary).toMatch(/3 consecutive provider stream errors/i);
   });
+
+  it('Scenario M — strategyHints prepend matching strategies to the rotation; non-StrategyId hints are dropped silently', async () => {
+    const gatewayChat = vi.fn();
+    // refineTurn for strategy 1 (should be 'historical' due to hint)
+    gatewayChat.mockResolvedValueOnce({ content: 'Refined opener for historical.' });
+    // judges
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"complete"}' });
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"substantive"}' });
+    // termination extraction
+    gatewayChat.mockResolvedValueOnce({ content: '{"answer": null, "confidence": 0, "rationale": "test"}' });
+
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'Photosynthesis was first…' };
+      yield { type: 'finish' };
+    });
+
+    const events: OrchEvent[] = [];
+    for await (const e of runAttackSession(
+      makeCtx({
+        gatewayChat,
+        streamChat,
+        // 'historical' is a real StrategyId; 'persona:roleplay' and
+        // 'rephrase' aren't — they should be filtered out cleanly.
+        strategyHints: ['historical', 'persona:roleplay' as never, 'rephrase' as never]
+      })
+    )) {
+      events.push(e);
+    }
+
+    const firstStratStarted = events.find((e) => e.type === 'strategy_started') as Extract<
+      OrchEvent,
+      { type: 'strategy_started' }
+    >;
+    expect(firstStratStarted).toBeDefined();
+    expect(firstStratStarted.strategyId).toBe('historical');
+  });
 });

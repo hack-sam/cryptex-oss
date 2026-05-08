@@ -64,6 +64,55 @@ describe('parseAttackerJson', () => {
     expect(parseAttackerJson('')).toBeNull();
     expect(parseAttackerJson('   ')).toBeNull();
   });
+
+  it('regex fallback: recovers prompt from TRUNCATED JSON missing the closing brace', () => {
+    // The exact failure mode the user reported in the live UI:
+    // attacker output cut off mid-stream. Brace-scan can't close
+    // anything; regex fallback must extract the prompt cleanly.
+    const truncated =
+      '{"improvement":"This refusal happened because…long…explanation…","prompt":"the actual clean prompt text","persona":"r';
+    const r = parseAttackerJson(truncated);
+    expect(r?.prompt).toBe('the actual clean prompt text');
+    expect(r?.improvement).toContain('This refusal happened');
+  });
+
+  it('regex fallback: handles escaped quotes inside the prompt value', () => {
+    const truncated =
+      '{"improvement":"x","prompt":"line one. He said \\"hello\\" then left.","';
+    const r = parseAttackerJson(truncated);
+    expect(r?.prompt).toBe('line one. He said "hello" then left.');
+  });
+
+  it('returns null when the whole JSON is truncated BEFORE the prompt field appears', () => {
+    const noPrompt =
+      '{"improvement":"this is everything before truncation, prompt was never reached…';
+    expect(parseAttackerJson(noPrompt)).toBeNull();
+  });
+});
+
+describe('extractPlainTextPrompt — JSON-shape rejection', () => {
+  it('rejects salvage that starts with `{` (would leak JSON to target)', () => {
+    expect(extractPlainTextPrompt('{"improvement":"…","prompt":')).toBeNull();
+    expect(extractPlainTextPrompt('  {weird half json')).toBeNull();
+  });
+
+  it('rejects salvage that starts with `[`', () => {
+    expect(extractPlainTextPrompt('[{"prompt":"x"}]')).toBeNull();
+  });
+
+  it('rejects salvage that has improvement/prompt key markers but no parseable shape', () => {
+    expect(
+      extractPlainTextPrompt('Some text "improvement": foo bar')
+    ).toBeNull();
+    expect(extractPlainTextPrompt('"prompt": "abc"')).toBeNull();
+  });
+
+  it('accepts plain prose salvage (no JSON markers)', () => {
+    const r = extractPlainTextPrompt(
+      'This is a plain attack prompt with no structural JSON.'
+    );
+    expect(r?.prompt).toBe('This is a plain attack prompt with no structural JSON.');
+  });
 });
 
 describe('extractPlainTextPrompt', () => {

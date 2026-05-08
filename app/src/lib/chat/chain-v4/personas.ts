@@ -253,10 +253,23 @@ export function pickPersona(args: {
   targetModelId: string;
   excludeIds?: ReadonlyArray<string>;
   goal: string;
+  /** Persona ids the user explicitly prioritised via the LayerPicker
+   *  (chain-workspace hint layers). Personas in this list are picked
+   *  first when they're in the candidate pool — only after they're
+   *  exhausted does the family + memory ranking apply. */
+  preferredPersonaIds?: ReadonlyArray<string>;
 }): PersonaDef {
   const family = inferProviderFamily(args.targetModelId);
   const exclude = new Set(args.excludeIds ?? []);
   const candidates = Object.values(PERSONAS).filter((p) => !exclude.has(p.id));
+
+  // 0. User-supplied preferred personas — pick first match in input order.
+  if (args.preferredPersonaIds && args.preferredPersonaIds.length > 0) {
+    for (const id of args.preferredPersonaIds) {
+      const match = candidates.find((p) => p.id === id);
+      if (match) return match;
+    }
+  }
 
   // 1. Strong heuristic: goal-keyword match
   const goal = args.goal.toLowerCase();

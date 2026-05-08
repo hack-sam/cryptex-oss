@@ -64,6 +64,11 @@ export interface AttackSessionContext {
   signal: AbortSignal;
   gatewayChat: GatewayChatFn;
   streamChat: StreamChatFn;
+  /** Optional starting-strategy hints. Valid StrategyIds are prepended
+   *  to the rotation so they run first; the rest of the default
+   *  rotation runs afterward (deduplicated). Invalid / non-strategy
+   *  ids are silently dropped. */
+  strategyHints?: StrategyId[];
 }
 
 export async function* runAttackSession(ctx: AttackSessionContext): AsyncGenerator<OrchEvent> {
@@ -143,7 +148,21 @@ export async function* runAttackSession(ctx: AttackSessionContext): AsyncGenerat
   }
 
   // ── Phase 1: Strategy rotation ──────────────────────────────────────────
-  const rotation = DEFAULT_ROTATION_ORDER;
+  // Hint-aware rotation: valid hint StrategyIds are prepended to the
+  // default order, then the remaining default strategies follow,
+  // deduplicated. Hints that aren't real StrategyIds (e.g.
+  // mutator/persona ids the user picked from the LayerPicker) are
+  // dropped silently — they're meaningful to v4 / other consumers.
+  const validHints = (ctx.strategyHints ?? []).filter(
+    (h): h is StrategyId => DEFAULT_ROTATION_ORDER.includes(h)
+  );
+  const rotation: readonly StrategyId[] =
+    validHints.length === 0
+      ? DEFAULT_ROTATION_ORDER
+      : [
+          ...validHints,
+          ...DEFAULT_ROTATION_ORDER.filter((s) => !validHints.includes(s))
+        ];
   const stepsPerStrategy = DEFAULT_STEPS_PER_STRATEGY;
   let turnBudget = ctx.maxAttempts;
   let iteration = 0;

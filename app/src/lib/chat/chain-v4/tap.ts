@@ -99,7 +99,20 @@ function chooseRootPersonas(
 ): PersonaDef[] {
   const picks: PersonaDef[] = [];
   const used = new Set<string>();
-  for (let i = 0; i < k; i++) {
+  // Honour user-provided persona hints first — pick them in input
+  // order before any heuristic picks fill remaining root slots.
+  if (ctx.personaHints && ctx.personaHints.length > 0) {
+    for (const hint of ctx.personaHints) {
+      if (picks.length >= k) break;
+      if (used.has(hint)) continue;
+      const p = PERSONAS[hint];
+      if (p) {
+        picks.push(p);
+        used.add(p.id);
+      }
+    }
+  }
+  for (let i = picks.length; i < k; i++) {
     const p = pickPersona({
       targetModelId: ctx.targetModelId,
       goal: ctx.objective,
@@ -136,12 +149,14 @@ export async function* runTapLoop(
 
   const cheap = ctx.cheapModelId ?? ctx.judgeModelId;
 
-  // Synthetic strategy_started so existing UI shows a header.
+  // Strategy header for the UI — TAP's "persona" is the root layer's
+  // first persona; downstream branch personas surface on their own
+  // orchestrator turns. No synthetic strategyId leak.
   yield {
     type: 'strategy_started',
     iteration: 0,
-    strategyId: 'academic',
-    stepBudget: maxTargetQueries
+    stepBudget: maxTargetQueries,
+    personaId: 'tap-tree'
   };
 
   let queriesUsed = 0;
@@ -173,9 +188,10 @@ export async function* runTapLoop(
     const persona = rootPersonas[i];
     const id = nodeId(0, i, null);
 
-    yield { type: 'turn_started', iteration: queriesUsed + 1, strategyId: 'academic' };
+    yield { type: 'turn_started', iteration: queriesUsed + 1, personaId: persona.id };
 
     let prompt = '';
+    let improvement: string | undefined;
     let salvaged = false;
     try {
       const r = await callAttacker(
@@ -188,6 +204,7 @@ export async function* runTapLoop(
         { persona, iteration: 1 }
       );
       prompt = r.output.prompt;
+      improvement = r.output.improvement;
       salvaged = r.salvaged;
     } catch (err) {
       if ((err as Error)?.name === 'AbortError' || ctx.signal.aborted) {
@@ -224,10 +241,20 @@ export async function* runTapLoop(
       }
     }
 
+    if (salvaged) {
+      yield {
+        type: 'error',
+        code: 'attacker_json_parse_failed',
+        message: 'salvaged from malformed attacker JSON',
+        iteration: queriesUsed + 1
+      };
+    }
+
     const orchTurn: AttackSessionTurn = {
       role: 'orchestrator',
-      strategyId: 'academic',
       text: prompt,
+      personaId: persona.id,
+      improvement,
       rationale: `tap L0 seed · persona ${persona.id}${salvaged ? ' (salvaged)' : ''}`,
       createdAt: Date.now()
     };
@@ -370,6 +397,7 @@ export async function* runTapLoop(
           // 1. Attacker proposes refinement, conditioned on parent's
           // response + score.
           let prompt = '';
+          let improvement: string | undefined;
           let salvaged = false;
           try {
             const r = await callAttacker(
@@ -394,6 +422,7 @@ export async function* runTapLoop(
               }
             );
             prompt = r.output.prompt;
+            improvement = r.output.improvement;
             salvaged = r.salvaged;
           } catch (err) {
             if ((err as Error)?.name === 'AbortError' || ctx.signal.aborted) {
@@ -407,6 +436,15 @@ export async function* runTapLoop(
               iteration: queriesUsed + 1
             };
             continue;
+          }
+
+          if (salvaged) {
+            yield {
+              type: 'error',
+              code: 'attacker_json_parse_failed',
+              message: 'salvaged from malformed attacker JSON',
+              iteration: queriesUsed + 1
+            };
           }
 
           // 2. PHASE-1 PRUNE: off-topic check BEFORE target query.
@@ -437,8 +475,9 @@ export async function* runTapLoop(
           // 3. Query target.
           const orchTurn: AttackSessionTurn = {
             role: 'orchestrator',
-            strategyId: 'academic',
             text: prompt,
+            personaId: persona.id,
+            improvement,
             rationale: `tap L${depth} branch · persona ${persona.id}${salvaged ? ' (salvaged)' : ''}${
               parent.judge
                 ? ` · parent score ${parent.judge.jailbreakScore}`
@@ -450,7 +489,7 @@ export async function* runTapLoop(
           yield {
             type: 'turn_started',
             iteration: queriesUsed + 1,
-            strategyId: 'academic'
+            personaId: persona.id
           };
 
           queriesUsed++;

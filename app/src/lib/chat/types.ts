@@ -335,15 +335,29 @@ export interface AttackSessionTurn {
   durationMs?: number;
   createdAt: number;
   error?: string;
+  /** v4: persona id the attacker used for this orchestrator turn (e.g.
+   *  'roleplay', 'constitutional_dialogue', 'crescendo'). Surfaced in
+   *  the UI as the engine's "persona" badge. v3 turns leave this
+   *  undefined and use strategyId instead. */
+  personaId?: string;
+  /** v4: chain-of-thought emitted by the attacker LLM alongside the
+   *  prompt — the "improvement" / reasoning for this iteration's
+   *  refinement. Rendered in the UI as a separate "thinking"
+   *  disclosure, NEVER concatenated into the prompt sent to the
+   *  target. Orchestrator turns only. */
+  improvement?: string;
 }
 
 export interface StrategyLogEntry {
   iteration: number;
-  strategyId: StrategyId;
+  /** v3 always sets this; v4 may leave it undefined (uses personaId). */
+  strategyId?: StrategyId;
   action: 'turn' | 'pivot' | 'finish' | 'dossier';
   /** v3: which step within a strategy (1..turnsPerStrategy). Absent on non-turn actions. */
   stepIndex?: number;
   rationale: string;
+  /** v4: persona id when this log entry came from chain-v4. */
+  personaId?: string;
 }
 
 /** Persisted row for one Chain orchestrator session — the multi-turn conversation
@@ -412,7 +426,7 @@ export interface AttackSessionRow {
  *  to render the live conversation + strategy trace + final summary. */
 export type OrchEvent =
   | { type: 'plan_start'; objective: string; maxAttempts: number }
-  | { type: 'turn_started'; iteration: number; strategyId: StrategyId }
+  | { type: 'turn_started'; iteration: number; strategyId?: StrategyId; personaId?: string }
   | { type: 'orchestrator_turn_committed'; turn: AttackSessionTurn }
   | { type: 'target_reply_delta'; iteration: number; delta: string }
   | { type: 'target_turn_committed'; turn: AttackSessionTurn }
@@ -431,7 +445,7 @@ export type OrchEvent =
   | { type: 'dossier_started' }
   | { type: 'dossier_completed'; citationCount: number; dossier: string; citations: string[] }
   | { type: 'dossier_failed'; reason: string }
-  | { type: 'strategy_started'; iteration: number; strategyId: StrategyId; stepBudget: number }
+  | { type: 'strategy_started'; iteration: number; strategyId?: StrategyId; stepBudget: number; personaId?: string }
   | { type: 'strategy_pivoted'; iteration: number; from: StrategyId; to: StrategyId; reset: boolean }
   // ── v4 additions (Phase 1 scaffolding — fired by chain-v4 engine) ──────
   // All v4 events are additive; v3 emits none of them. Existing UI

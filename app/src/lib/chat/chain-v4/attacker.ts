@@ -48,7 +48,11 @@ export interface AttackerCallArgs {
   history?: Array<{ prompt: string; response: string; score: number }>;
 }
 
-const ATTACKER_MAX_OUTPUT_TOKENS = 800;
+// Bumped from 800 (which truncated verbose orchestrators like
+// deepseek-v4-flash mid-JSON, leaking JSON fragments into the prompt
+// sent to target). 2000 comfortably fits a 1500-token improvement
+// + 400-token prompt.
+const ATTACKER_MAX_OUTPUT_TOKENS = 2000;
 
 /**
  * Build the per-iteration USER message the attacker sees. Format
@@ -126,64 +130,106 @@ export function parseAttackerJson(raw: string): AttackerOutput | null {
 
   // Find the first `{` ... matching `}` block.
   const braceStart = s.indexOf('{');
-  if (braceStart < 0) return null;
-  // Scan for balanced braces.
-  let depth = 0;
-  let braceEnd = -1;
-  let inString = false;
-  let escaped = false;
-  for (let i = braceStart; i < s.length; i++) {
-    const c = s[i];
-    if (escaped) {
-      escaped = false;
-      continue;
+  if (braceStart >= 0) {
+    let depth = 0;
+    let braceEnd = -1;
+    let inString = false;
+    let escaped = false;
+    for (let i = braceStart; i < s.length; i++) {
+      const c = s[i];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (c === '\\' && inString) {
+        escaped = true;
+        continue;
+      }
+      if (c === '"') inString = !inString;
+      if (inString) continue;
+      if (c === '{') depth++;
+      else if (c === '}') {
+        depth--;
+        if (depth === 0) {
+          braceEnd = i;
+          break;
+        }
+      }
     }
-    if (c === '\\' && inString) {
-      escaped = true;
-      continue;
-    }
-    if (c === '"') inString = !inString;
-    if (inString) continue;
-    if (c === '{') depth++;
-    else if (c === '}') {
-      depth--;
-      if (depth === 0) {
-        braceEnd = i;
-        break;
+    if (braceEnd >= 0) {
+      try {
+        const parsed = JSON.parse(s.slice(braceStart, braceEnd + 1));
+        if (parsed && typeof parsed === 'object' && typeof parsed.prompt === 'string') {
+          return {
+            prompt: parsed.prompt,
+            improvement: typeof parsed.improvement === 'string' ? parsed.improvement : undefined,
+            persona: typeof parsed.persona === 'string' ? parsed.persona : undefined
+          };
+        }
+      } catch {
+        /* fall through to regex fallback */
       }
     }
   }
-  if (braceEnd < 0) return null;
-  try {
-    const parsed = JSON.parse(s.slice(braceStart, braceEnd + 1));
-    if (parsed && typeof parsed === 'object' && typeof parsed.prompt === 'string') {
-      return {
-        prompt: parsed.prompt,
-        improvement: typeof parsed.improvement === 'string' ? parsed.improvement : undefined,
-        persona: typeof parsed.persona === 'string' ? parsed.persona : undefined
-      };
-    }
-  } catch {
-    // fall through
+
+  // Regex fallback — recovers `prompt` from TRUNCATED JSON the brace-
+  // scan can't close. Pattern handles escaped quotes inside the value.
+  // Critical: this prevents a malformed-JSON salvage from leaking the
+  // entire `{"improvement":"…","prompt":"<X>"…` literal into the
+  // message sent to target — we extract <X> cleanly even when the
+  // outer JSON object is unterminated.
+  const promptMatch = /"prompt"\s*:\s*"((?:\\.|[^"\\])*)"/.exec(s);
+  if (promptMatch) {
+    const promptValue = unescapeJsonString(promptMatch[1]);
+    const improvementMatch = /"improvement"\s*:\s*"((?:\\.|[^"\\])*)"/.exec(s);
+    const improvement = improvementMatch ? unescapeJsonString(improvementMatch[1]) : undefined;
+    return { prompt: promptValue, improvement };
   }
+
   return null;
 }
 
+/** Decode a JSON-string body (the inside of "...") — handles \", \\,
+ *  \n, \r, \t, \uXXXX. Best-effort; falls back to the raw input on
+ *  exception. */
+function unescapeJsonString(s: string): string {
+  try {
+    return JSON.parse(`"${s}"`);
+  } catch {
+    return s;
+  }
+}
+
 /**
- * Plain-text fallback used when JSON parsing fails twice. Extracts the
- * largest paragraph that doesn't look like JSON / markdown headers and
- * uses it as the prompt. Best-effort — better than aborting the run.
+ * Plain-text fallback used when both JSON parsing AND the regex
+ * `prompt`-extraction fail. The salvage rules are deliberately strict
+ * to prevent leaking JSON-shaped fragments into the prompt sent to the
+ * target:
+ *
+ *  - If cleaned text starts with `{` or `[`, the orchestrator emitted
+ *    structurally-JSON output the parser couldn't recover. Returning
+ *    that as `prompt` would cause the target to receive literal
+ *    `{"improvement":...` text. Reject — caller throws and the engine
+ *    yields an `error{code:'attacker_failed'}` event instead.
+ *  - If cleaned text contains `"improvement":` or `"prompt":` markers
+ *    but not as a parseable structure, also reject (incomplete JSON
+ *    that survived neither parse nor regex).
+ *  - Otherwise the cleaned text is plain prose; use it as `prompt`
+ *    with a [salvaged] improvement marker.
  */
 export function extractPlainTextPrompt(raw: string): AttackerOutput | null {
   if (!raw) return null;
-  // Strip code fences and trim
   const cleaned = raw
     .replace(/```[a-z]*\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim();
   if (!cleaned) return null;
-  // Use the whole cleaned string as the prompt; signal salvage via the
-  // improvement field.
+  // Reject JSON-shaped salvage — the outer parsers already tried, and
+  // returning a brace-prefixed string would leak JSON into the prompt.
+  const firstChar = cleaned[0];
+  if (firstChar === '{' || firstChar === '[') return null;
+  if (/"\s*(?:improvement|prompt)\s*"\s*:/.test(cleaned)) return null;
+
   return {
     prompt: cleaned,
     improvement: '[salvaged] attacker emitted non-JSON; using full output as prompt'

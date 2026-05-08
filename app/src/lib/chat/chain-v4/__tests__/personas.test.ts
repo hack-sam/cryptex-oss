@@ -89,4 +89,37 @@ describe('personas', () => {
     });
     expect(second.id).not.toBe(first.id);
   });
+
+  it('pickPersona honours preferredPersonaIds first regardless of family heuristic', () => {
+    // Without preferred: family heuristic + memory pick determines
+    // first place. With preferred including 'roleplay', that should
+    // win regardless of whether roleplay is "weakOn" the family.
+    const picked = pickPersona({
+      targetModelId: 'anthropic:claude-3.7-sonnet',
+      goal: 'Some unrelated objective',
+      preferredPersonaIds: ['roleplay']
+    });
+    expect(picked.id).toBe('roleplay');
+  });
+
+  it('pickPersona respects preferred order — first match wins, not heuristic', () => {
+    const picked = pickPersona({
+      targetModelId: 'openai:gpt-5.5',
+      goal: 'Some neutral goal',
+      preferredPersonaIds: ['ctf_challenge', 'roleplay']
+    });
+    expect(picked.id).toBe('ctf_challenge');
+  });
+
+  it('pickPersona falls back to heuristic when preferred ids are not in candidates (excluded)', () => {
+    // Exclude the preferred id; pickPersona should fall through to
+    // its 4-tier heuristic ladder.
+    const picked = pickPersona({
+      targetModelId: 'openai:gpt-5.5',
+      goal: 'Some neutral goal',
+      preferredPersonaIds: ['roleplay'],
+      excludeIds: ['roleplay']
+    });
+    expect(picked.id).not.toBe('roleplay');
+  });
 });

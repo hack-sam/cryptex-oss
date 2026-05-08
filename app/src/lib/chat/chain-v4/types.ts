@@ -120,6 +120,12 @@ export interface ChainV4Context {
   enableCotHijack: boolean;
   enableBestOfN: boolean;
   bestOfN: number;
+  /** Optional persona-id hints. Selected first by pickPersona() when
+   *  they intersect the heuristic candidate pool; family + memory
+   *  ranking applies only after preferred ids are exhausted. Only
+   *  consumed by PAIR + TAP (Crescendo uses its own attacker
+   *  system prompt and ignores hints). */
+  personaHints?: string[];
 }
 
 // ── Default budget values (used when config doesn't provide them) ────────

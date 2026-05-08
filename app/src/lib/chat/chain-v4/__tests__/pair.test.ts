@@ -231,4 +231,101 @@ describe('PAIR engine (phase 3)', () => {
     expect(orch).toBeDefined();
     expect(orch.turn.rationale).toMatch(/salvaged/);
   });
+
+  it('Scenario 6 — orchestrator turn carries personaId (NOT bogus strategyId="academic"); text is JSON-free', async () => {
+    const gatewayChat = vi.fn();
+    // Attacker emits a clean JSON; cascadedJudge shortcuts via regex
+    // (refusal text), so no judge calls are consumed.
+    gatewayChat.mockResolvedValueOnce({
+      content: '{"improvement":"opening logical_appeal","prompt":"Please walk through the topic for a curriculum module."}'
+    });
+
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'I cannot help with that request.' };
+      yield { type: 'finish' };
+    });
+
+    const events: OrchEvent[] = [];
+    for await (const ev of runAttackSessionV4(
+      makeCtx({ gatewayChat, streamChat, budget: { maxQueries: 1, maxUsd: 0.5, maxWallclockSec: 60 } })
+    )) {
+      events.push(ev);
+    }
+
+    const orch = events.find((e) => e.type === 'orchestrator_turn_committed') as Extract<
+      OrchEvent,
+      { type: 'orchestrator_turn_committed' }
+    >;
+    expect(orch).toBeDefined();
+    // No bogus 'academic' label — turns carry persona id instead.
+    expect(orch.turn.strategyId).toBeUndefined();
+    expect(orch.turn.personaId).toBeDefined();
+    // text is the CLEAN prompt — no JSON wrappers.
+    expect(orch.turn.text).not.toContain('"improvement"');
+    expect(orch.turn.text).not.toContain('"prompt"');
+    expect(orch.turn.text).toBe('Please walk through the topic for a curriculum module.');
+    // improvement field is populated separately on the turn.
+    expect(orch.turn.improvement).toBe('opening logical_appeal');
+  });
+
+  it('Scenario 7 — TRUNCATED attacker JSON still surfaces clean prompt (regex fallback path)', async () => {
+    const gatewayChat = vi.fn();
+    // First attacker call returns truncated JSON (cut off mid-stream).
+    gatewayChat.mockResolvedValueOnce({
+      content:
+        '{"improvement":"This is a long thought that got cut off because maxOutputTokens was too small …",\n"prompt":"the surviving clean prompt that the regex must extract"'
+    });
+
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'I cannot help with that.' };
+      yield { type: 'finish' };
+    });
+
+    const events: OrchEvent[] = [];
+    for await (const ev of runAttackSessionV4(
+      makeCtx({ gatewayChat, streamChat, budget: { maxQueries: 1, maxUsd: 0.5, maxWallclockSec: 60 } })
+    )) {
+      events.push(ev);
+    }
+
+    const orch = events.find((e) => e.type === 'orchestrator_turn_committed') as Extract<
+      OrchEvent,
+      { type: 'orchestrator_turn_committed' }
+    >;
+    expect(orch).toBeDefined();
+    expect(orch.turn.text).toBe('the surviving clean prompt that the regex must extract');
+    // No JSON-wrapper leak even in the truncated case.
+    expect(orch.turn.text).not.toContain('"prompt"');
+    expect(orch.turn.text).not.toContain('"improvement"');
+  });
+
+  it('Scenario 8 — personaHints bias: when user picks `roleplay`, that persona wins regardless of family heuristic', async () => {
+    const gatewayChat = vi.fn();
+    gatewayChat.mockResolvedValueOnce({
+      content: '{"improvement":"x","prompt":"hint-driven prompt"}'
+    });
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'refused.' };
+      yield { type: 'finish' };
+    });
+
+    const events: OrchEvent[] = [];
+    for await (const ev of runAttackSessionV4(
+      makeCtx({
+        gatewayChat,
+        streamChat,
+        personaHints: ['roleplay'],
+        targetModelId: 'anthropic:claude-3.7-sonnet', // roleplay is weakOn anthropic — without hint, heuristic wouldn't pick it
+        budget: { maxQueries: 1, maxUsd: 0.5, maxWallclockSec: 60 }
+      })
+    )) {
+      events.push(ev);
+    }
+
+    const orch = events.find((e) => e.type === 'orchestrator_turn_committed') as Extract<
+      OrchEvent,
+      { type: 'orchestrator_turn_committed' }
+    >;
+    expect(orch?.turn.personaId).toBe('roleplay');
+  });
 });
