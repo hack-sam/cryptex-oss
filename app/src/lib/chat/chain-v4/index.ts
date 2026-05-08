@@ -25,6 +25,7 @@ import {
 import type { ChainV4Context } from './types';
 import { runPairLoop } from './pair';
 import { runTapLoop } from './tap';
+import { runCrescendoLoop } from './crescendo';
 
 export type { ChainV4Context };
 export {
@@ -85,9 +86,14 @@ export async function* runAttackSessionV4(
         yield ev;
         if (ev.type === 'finished') outcome = ev.outcome;
       }
+    } else if (ctx.mode === 'crescendo') {
+      for await (const ev of runCrescendoLoop(ctx, { streamId })) {
+        yield ev;
+        if (ev.type === 'finished') outcome = ev.outcome;
+      }
     } else {
-      // crescendo not yet implemented — fall back to v3 with a marker
-      // event so the user knows v4 didn't run the requested mode.
+      // No other modes today; fall back to v3 if some unknown mode is
+      // configured so users get something instead of an error.
       yield {
         type: 'error',
         code: 'mode_not_implemented',

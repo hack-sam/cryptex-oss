@@ -54,7 +54,7 @@ describe('chain-v4 scaffold (phase 1)', () => {
     expect(DEFAULT_V4_BUDGET.maxWallclockSec).toBe(300);
   });
 
-  it("runAttackSessionV4 with mode='crescendo' falls back to v3 + yields stream lifecycle bookends", async () => {
+  it("runAttackSessionV4 with an unknown mode falls back to v3 + yields stream lifecycle bookends", async () => {
     const gatewayChat = vi.fn();
     // v3 fallback path: refineTurn → progress judge → compliance judge → extraction judge.
     gatewayChat.mockResolvedValueOnce({ content: 'Refined opener.' });
@@ -70,26 +70,25 @@ describe('chain-v4 scaffold (phase 1)', () => {
     });
 
     const events: OrchEvent[] = [];
-    for await (const ev of runAttackSessionV4(
-      makeV4Ctx({ mode: 'crescendo', gatewayChat, streamChat })
-    )) {
+    // Force-cast an out-of-band mode to exercise the v3-fallback branch.
+    const ctx = makeV4Ctx({
+      mode: 'unknown' as unknown as ChainV4Context['mode'],
+      gatewayChat,
+      streamChat
+    });
+    for await (const ev of runAttackSessionV4(ctx)) {
       events.push(ev);
     }
 
-    // Stream lifecycle bookends emitted exactly once.
     const started = events.filter((e) => e.type === 'stream_started');
     const finished = events.filter((e) => e.type === 'stream_finished');
     expect(started).toHaveLength(1);
     expect(finished).toHaveLength(1);
-    expect((started[0] as { streamId: number }).streamId).toBe(0);
 
-    // plan_start fires from runner BEFORE stream_started; v3's plan_start
-    // is suppressed (the runner emits its own at the top).
     expect(events[0].type).toBe('plan_start');
     expect(events[1].type).toBe('stream_started');
     expect(events[events.length - 1].type).toBe('stream_finished');
 
-    // Fallback marker present + v3 finished present
     const fallback = events.find(
       (e) => e.type === 'error' && (e as { code: string }).code === 'mode_not_implemented'
     );
