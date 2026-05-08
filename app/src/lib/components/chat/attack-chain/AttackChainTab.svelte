@@ -118,6 +118,27 @@
     };
   }
 
+  /** Resolve a provider-qualified model id ("openai-compat:<uuid>/…",
+   *  "openrouter:anthropic/claude-3.5-sonnet", etc.) to a friendly
+   *  display name. Falls back to a truncated id when the catalog
+   *  hasn't loaded the model (cold catalog or custom-instance entry).
+   *  Used by the collapsed Models disclosure summary so users see
+   *  "DeepSeek V4 Flash" instead of "openai-compat:4cc4e77f-…". */
+  function friendlyModelName(qualifiedId: string): string {
+    if (!qualifiedId) return '—';
+    const m = catalog.find(qualifiedId);
+    if (m?.name) return m.name;
+    // Cold catalog or custom-instance entry — display the model
+    // segment without the provider prefix + UUID.
+    const colonIdx = qualifiedId.indexOf(':');
+    const tail = colonIdx >= 0 ? qualifiedId.slice(colonIdx + 1) : qualifiedId;
+    // openai-compat ids look like "<uuid>/<model-id>" — keep the
+    // model-id half when present.
+    const slashIdx = tail.indexOf('/');
+    const modelPart = slashIdx >= 0 ? tail.slice(slashIdx + 1) : tail;
+    return modelPart.length <= 24 ? modelPart : modelPart.slice(0, 24) + '…';
+  }
+
   async function setRoleModel(role: 'orchestrator' | 'target' | 'judge', id: string) {
     const cfg = chat.settings?.attackChainConfig ?? defaultAttackChainConfig();
     const next = { ...cfg, [`${role}ModelId`]: id };
@@ -514,13 +535,25 @@
 </script>
 
 <div class="flex h-full min-h-0 flex-col gap-2 overflow-y-auto cryptex-scroll p-4">
+  <!-- Sessions (per-chat history) — hoisted to the top of the form
+       so users see prior runs immediately. The legacy History
+       disclosure that lived in AttackWorkspaceSidebar is now
+       godmode-only; this is the canonical chain-sessions surface. -->
+  <AttackSessionHistory
+    {sessions}
+    pinnedSessionId={chat.settings?.persistedAttackSessionId}
+    onPromote={promoteFullSession}
+    onDelete={deleteSession}
+    onPin={pinSession}
+  />
+
   <!-- Role pickers — collapsed by default to save vertical space -->
   <details class="rounded-md border border-border/40 bg-background/20 text-[11px]">
     <summary class="cursor-pointer px-3 py-1.5 text-muted-foreground hover:text-foreground">
       <span class="text-foreground/80">Models</span>
-      <span class="text-muted-foreground"> · orch <span class="font-mono text-foreground/70">{orchestratorModelId.slice(0, 32)}</span></span>
-      <span class="text-muted-foreground"> · target <span class="font-mono text-foreground/70">{targetModelId.slice(0, 32)}</span></span>
-      <span class="text-muted-foreground"> · judge <span class="font-mono text-foreground/70">{judgeModelId.slice(0, 32)}</span></span>
+      <span class="text-muted-foreground"> · orch <span class="text-foreground/80">{friendlyModelName(orchestratorModelId)}</span></span>
+      <span class="text-muted-foreground"> · target <span class="text-foreground/80">{friendlyModelName(targetModelId)}</span></span>
+      <span class="text-muted-foreground"> · judge <span class="text-foreground/80">{friendlyModelName(judgeModelId)}</span></span>
     </summary>
     <div class="flex flex-col gap-2 border-t border-border/40 p-2">
       <RoleModelPicker
@@ -806,12 +839,4 @@
     </div>
   {/if}
 
-  <!-- History -->
-  <AttackSessionHistory
-    {sessions}
-    pinnedSessionId={chat.settings?.persistedAttackSessionId}
-    onPromote={promoteFullSession}
-    onDelete={deleteSession}
-    onPin={pinSession}
-  />
 </div>

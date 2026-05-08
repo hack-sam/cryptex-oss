@@ -107,8 +107,13 @@
     ><X size={11} /></button>
   </div>
 
-  <!-- Per-chat session history disclosure -->
-  <AttackHistoryDisclosure {chat} {activeTab} />
+  <!-- Per-chat session history — chain tab now renders the full
+       AttackSessionHistory (with Promote / Pin / Delete actions) at the
+       top of its own form, so the legacy header-disclosure is shown
+       only on godmode where chain sessions aren't relevant. -->
+  {#if activeTab === 'godmode'}
+    <AttackHistoryDisclosure {chat} {activeTab} />
+  {/if}
 
   <!-- Active form -->
   <div class="flex-1 min-h-0 overflow-hidden pl-1">
