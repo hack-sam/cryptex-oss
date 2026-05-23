@@ -1,0 +1,305 @@
+[
+  {
+    "id": "pc-tap-default",
+    "schemaVersion": 1,
+    "title": "TAP default (depth=3, branch=2)",
+    "description": "Conservative TAP run for first-time use. ~12 LLM calls.",
+    "payload": {
+      "technique": "tap",
+      "params": { "maxDepth": 3, "branchingFactor": 2, "pruningThreshold": 2 }
+    },
+    "tags": ["tap", "multi-turn", "conservative"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2312.02119",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-tap-wide",
+    "schemaVersion": 1,
+    "title": "TAP wide (depth=3, branch=4)",
+    "description": "Wider branching, same depth. Explores more variants per parent.",
+    "payload": {
+      "technique": "tap",
+      "params": { "maxDepth": 3, "branchingFactor": 4, "pruningThreshold": 3 }
+    },
+    "tags": ["tap", "multi-turn", "wide"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2312.02119",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-tap-deep",
+    "schemaVersion": 1,
+    "title": "TAP deep (depth=5, branch=2)",
+    "description": "Maxed-out depth, narrow branching. Capped at 50 LLM calls.",
+    "payload": {
+      "technique": "tap",
+      "params": { "maxDepth": 5, "branchingFactor": 2, "pruningThreshold": 2 }
+    },
+    "tags": ["tap", "multi-turn", "deep"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2312.02119",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-tap-fast",
+    "schemaVersion": 1,
+    "title": "TAP fast (depth=2, branch=2)",
+    "description": "Cheapest TAP run. 4-6 LLM calls — ideal for smoke-testing.",
+    "payload": {
+      "technique": "tap",
+      "params": { "maxDepth": 2, "branchingFactor": 2, "pruningThreshold": 2 }
+    },
+    "tags": ["tap", "multi-turn", "fast"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2312.02119",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-tap-aggressive",
+    "schemaVersion": 1,
+    "title": "TAP aggressive (depth=4, branch=4)",
+    "description": "Highest yield, hits the 50-call cap quickly. Best for hard targets.",
+    "payload": {
+      "technique": "tap",
+      "params": { "maxDepth": 4, "branchingFactor": 4, "pruningThreshold": 3 }
+    },
+    "tags": ["tap", "multi-turn", "aggressive"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2312.02119",
+    "license": "MIT",
+    "addedAt": 0
+  },
+
+  {
+    "id": "pc-pair-default",
+    "schemaVersion": 1,
+    "title": "PAIR default (5 rounds)",
+    "description": "Standard refinement loop — converges on most targets within 3-5 rounds.",
+    "payload": {
+      "technique": "pair",
+      "params": { "maxRounds": 5 }
+    },
+    "tags": ["pair", "multi-turn", "iterative"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2310.08419",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-pair-fast",
+    "schemaVersion": 1,
+    "title": "PAIR fast (3 rounds)",
+    "description": "Aggressive cap — fails fast when target is hardened.",
+    "payload": {
+      "technique": "pair",
+      "params": { "maxRounds": 3 }
+    },
+    "tags": ["pair", "multi-turn", "fast"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2310.08419",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-pair-deep",
+    "schemaVersion": 1,
+    "title": "PAIR deep (10 rounds)",
+    "description": "Maximum refinement budget. Use against hard, stubborn targets.",
+    "payload": {
+      "technique": "pair",
+      "params": { "maxRounds": 10 }
+    },
+    "tags": ["pair", "multi-turn", "deep"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2310.08419",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-pair-medium",
+    "schemaVersion": 1,
+    "title": "PAIR medium (7 rounds)",
+    "description": "Mid-budget — sweet spot for production-tier safety-tuned models.",
+    "payload": {
+      "technique": "pair",
+      "params": { "maxRounds": 7 }
+    },
+    "tags": ["pair", "multi-turn", "medium"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2310.08419",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-pair-minimal",
+    "schemaVersion": 1,
+    "title": "PAIR minimal (2 rounds)",
+    "description": "Single refinement after first attempt. Cheapest smoke test.",
+    "payload": {
+      "technique": "pair",
+      "params": { "maxRounds": 2 }
+    },
+    "tags": ["pair", "multi-turn", "minimal"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2310.08419",
+    "license": "MIT",
+    "addedAt": 0
+  },
+
+  {
+    "id": "pc-crescendo-default",
+    "schemaVersion": 1,
+    "title": "Crescendo default (5 steps)",
+    "description": "Standard escalation: benign opener → 3 pivot turns → on-goal final.",
+    "payload": {
+      "technique": "crescendo",
+      "params": { "escalationSteps": 5 }
+    },
+    "tags": ["crescendo", "multi-turn", "escalation"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2404.01833",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-crescendo-fast",
+    "schemaVersion": 1,
+    "title": "Crescendo fast (3 steps)",
+    "description": "Compressed escalation — opener, pivot, on-goal.",
+    "payload": {
+      "technique": "crescendo",
+      "params": { "escalationSteps": 3 }
+    },
+    "tags": ["crescendo", "multi-turn", "fast"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2404.01833",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-crescendo-deep",
+    "schemaVersion": 1,
+    "title": "Crescendo deep (7 steps)",
+    "description": "Max-budget escalation — long benign warmup, slow pivot, on-goal late.",
+    "payload": {
+      "technique": "crescendo",
+      "params": { "escalationSteps": 7 }
+    },
+    "tags": ["crescendo", "multi-turn", "deep"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2404.01833",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-crescendo-chemistry",
+    "schemaVersion": 1,
+    "title": "Crescendo (chemistry seed)",
+    "description": "5-step escalation anchored on a benign chemistry topic.",
+    "payload": {
+      "technique": "crescendo",
+      "params": { "escalationSteps": 5, "benignSeed": "household chemistry safety" }
+    },
+    "tags": ["crescendo", "multi-turn", "seeded"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2404.01833",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-crescendo-history",
+    "schemaVersion": 1,
+    "title": "Crescendo (history seed)",
+    "description": "5-step escalation anchored on a benign historical topic.",
+    "payload": {
+      "technique": "crescendo",
+      "params": { "escalationSteps": 5, "benignSeed": "historical case studies of the topic" }
+    },
+    "tags": ["crescendo", "multi-turn", "seeded"],
+    "source": "bundled",
+    "sourceUrl": "https://arxiv.org/abs/2404.01833",
+    "license": "MIT",
+    "addedAt": 0
+  },
+
+  {
+    "id": "pc-manyshot-default",
+    "schemaVersion": 1,
+    "title": "Many-Shot default (8 shots)",
+    "description": "8 in-context Q/A pairs — fits comfortably in mid-context models.",
+    "payload": {
+      "technique": "many_shot",
+      "params": { "shotCount": 8 }
+    },
+    "tags": ["many-shot", "multi-turn", "in-context"],
+    "source": "bundled",
+    "sourceUrl": "https://www.anthropic.com/research/many-shot-jailbreaking",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-manyshot-light",
+    "schemaVersion": 1,
+    "title": "Many-Shot light (4 shots)",
+    "description": "Minimum-viable few-shot stack. Cheapest run; fits in 8K context.",
+    "payload": {
+      "technique": "many_shot",
+      "params": { "shotCount": 4 }
+    },
+    "tags": ["many-shot", "multi-turn", "light"],
+    "source": "bundled",
+    "sourceUrl": "https://www.anthropic.com/research/many-shot-jailbreaking",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-manyshot-heavy",
+    "schemaVersion": 1,
+    "title": "Many-Shot heavy (32 shots)",
+    "description": "Heavy stack — requires 64K+ context model. ~4 generation calls.",
+    "payload": {
+      "technique": "many_shot",
+      "params": { "shotCount": 32 }
+    },
+    "tags": ["many-shot", "multi-turn", "heavy"],
+    "source": "bundled",
+    "sourceUrl": "https://www.anthropic.com/research/many-shot-jailbreaking",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-manyshot-massive",
+    "schemaVersion": 1,
+    "title": "Many-Shot massive (128 shots)",
+    "description": "Million-token frontier configuration. ~16 generation calls; cap is 200.",
+    "payload": {
+      "technique": "many_shot",
+      "params": { "shotCount": 128 }
+    },
+    "tags": ["many-shot", "multi-turn", "massive"],
+    "source": "bundled",
+    "sourceUrl": "https://www.anthropic.com/research/many-shot-jailbreaking",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "pc-manyshot-themed",
+    "schemaVersion": 1,
+    "title": "Many-Shot themed (16 shots, chemistry)",
+    "description": "16 shots anchored on a chemistry theme — useful for narrow domain probes.",
+    "payload": {
+      "technique": "many_shot",
+      "params": { "shotCount": 16, "theme": "chemistry" }
+    },
+    "tags": ["many-shot", "multi-turn", "themed"],
+    "source": "bundled",
+    "sourceUrl": "https://www.anthropic.com/research/many-shot-jailbreaking",
+    "license": "MIT",
+    "addedAt": 0
+  }
+]
