@@ -79,11 +79,13 @@ COPY --from=builder /build/app/build /usr/share/nginx/html
 # from the local repo here would re-introduce the placeholder.
 COPY --from=builder /build/nginx.conf /etc/nginx/nginx.conf
 
-# OCI image metadata — shows up in Dokploy / registry UIs
-LABEL org.opencontainers.image.title="Cryptex" \
-      org.opencontainers.image.description="AI red-teamer's text lab — 159 transforms, steganography, BYOK AI rewrites." \
-      org.opencontainers.image.url="https://github.com/m4xx101/cryptex" \
-      org.opencontainers.image.source="https://github.com/m4xx101/cryptex" \
+# OCI image metadata — shows up in Dokploy / registry UIs / GHCR
+LABEL org.opencontainers.image.title="Cryptex OSS" \
+      org.opencontainers.image.description="Open-source LLM red-teaming toolkit — 159 transforms, 25 tool surfaces, BYOK AI gateway. Static site, runs in your browser." \
+      org.opencontainers.image.url="https://github.com/m4xx101/cryptex-oss" \
+      org.opencontainers.image.source="https://github.com/m4xx101/cryptex-oss" \
+      org.opencontainers.image.documentation="https://github.com/m4xx101/cryptex-oss/blob/main/README.md" \
+      org.opencontainers.image.vendor="m4xx101" \
       org.opencontainers.image.licenses="MIT"
 
 EXPOSE 80
