@@ -1,14 +1,14 @@
-# CLAUDE.md
+# Contributor + AI-Assistant Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file is read by AI coding assistants (Claude, Copilot, Cursor, etc.) so they follow the project's conventions. Humans contributing PRs should skim it once too.
 
 ## What this repo is
 
-Cryptex OSS is a **SvelteKit 2 + Svelte 5 + shadcn-svelte static-site app** for LLM red-teaming techniques. The deliverable is a single-page browser app, served as static files. There is no backend, no database, and no auth — every piece of state lives in `localStorage`. The app exposes 25 tool routes (10 technique workbenches under `/transforms`, `/decode`, etc., plus 15 red-team labs under `/redteam/*`).
+Cryptex OSS is a SvelteKit 2 + Svelte 5 + shadcn-svelte static-site app for LLM red-teaming techniques. The deliverable is a single-page browser app, served as static files. There is no backend, no database, and no auth; every piece of state lives in `localStorage`. The app exposes 25 tool routes (10 technique workbenches under `/transforms`, `/decode`, etc., plus 15 red-team labs under `/redteam/*`).
 
-A Python CLI (`cryptex-cli`, managed with `uv`) shells out to Node to execute the canonical transformers in `src/transformers/`, so there is **one source of truth** for transforms — both the SvelteKit app and the CLI import the same 159 transformer files.
+A Python CLI (`cryptex-cli`, managed with `uv`) shells out to Node to execute the canonical transformers in `src/transformers/`, so there is one source of truth for transforms: both the SvelteKit app and the CLI import the same 159 transformer files.
 
-The v2.0 milestone (commits beginning with the `feat(core)`/`feat(redteam)`/`feat(history)` series) hardened every tool surface with a unified `ToolShell` template, typed `CryptexError` taxonomy, Web Worker offloading for ≥50 KB transform inputs, a per-tool **Vault** drawer (309 bundled OSS-licensed seed items + custom-add), and a persistent searchable session history via the v2 store. See the **v2.0 conventions** section below before adding new surfaces.
+The v2.0 milestone hardened every tool surface with a unified `ToolShell` template, typed `CryptexError` taxonomy, Web Worker offloading for inputs at or above 50 KB, a per-tool Vault drawer (309 bundled OSS-licensed seed items + custom-add), and a persistent searchable session history via the v2 store. See the v2.0 conventions section below before adding new surfaces.
 
 ## Commands
 

@@ -1,43 +1,39 @@
 {
-  "name": "cryptex",
-  "version": "1.0.0",
-  "description": "Universal Text Encoder/Decoder & Steganography Tool",
+  "name": "cryptex-oss",
+  "version": "2.0.1",
+  "description": "Open-source LLM red-teaming toolkit. 159 transforms, 25 tool surfaces, BYOK gateway. Static site, runs in your browser.",
   "scripts": {
-    "build:copy": "node build/copy-static.js",
-    "build:index": "node build/build-index.js",
-    "build:tools": "node build/inject-tool-scripts.js",
-    "build:templates": "node build/inject-tool-templates.js",
-    "build:emoji": "node build/build-emoji-data.js",
-    "build:transforms": "node build/build-transforms.js",
-    "build:legacy": "npm run build:tools && npm run build:copy && npm run build:index && npm run build:transforms && npm run build:emoji && npm run build:templates",
-    "build:app": "cd app && npm ci && npm run build && cd .. && node scripts/promote-dist.js",
-    "build": "npm run build:app",
-    "app:dev": "cd app && npm run dev",
-    "app:check": "cd app && npm run check",
-    "app:test": "cd app && npm run test:unit",
-    "start": "serve dist -l 8080",
-    "preview": "npm run build && serve dist -l 8080",
-    "test": "node tests/test_universal.js",
-    "test:lexeme": "node tests/test_lexeme_analysis.js",
-    "test:lexeme-ui": "node tests/test_lexeme_ui_surface.js",
+    "build": "cd app && npm ci && npm run build",
+    "dev": "cd app && npm run dev",
+    "check": "cd app && npm run check",
+    "test": "npm run test:all",
+    "test:unit": "cd app && npx vitest run",
     "test:universal": "node tests/test_universal.js",
     "test:steg": "node tests/test_steganography_options.js",
-    "test:all": "npm run test:universal && npm run test:steg && npm run test:lexeme && npm run test:lexeme-ui",
-    "precommit": "npm run test:all"
+    "test:lexeme": "node tests/test_lexeme_analysis.js",
+    "test:lexeme-ui": "node tests/test_lexeme_ui_surface.js",
+    "test:all": "npm run test:universal && npm run test:steg && npm run test:lexeme && npm run test:lexeme-ui"
   },
   "repository": {
     "type": "git",
-    "url": "."
+    "url": "https://github.com/m4xx101/cryptex-oss.git"
   },
+  "homepage": "https://cryptex.m4xx.cfd",
+  "bugs": "https://github.com/m4xx101/cryptex-oss/issues",
+  "license": "MIT",
   "keywords": [
+    "llm",
+    "red-team",
+    "jailbreak",
+    "ai-safety",
+    "prompt-engineering",
+    "steganography",
+    "cipher",
     "encoder",
     "decoder",
-    "steganography",
-    "cipher"
-  ],
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "serve": "^14.2.6"
-  }
+    "byok",
+    "static-site",
+    "svelte",
+    "sveltekit"
+  ]
 }
