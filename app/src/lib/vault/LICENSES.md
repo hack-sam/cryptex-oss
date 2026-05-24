@@ -3,7 +3,7 @@
 Every payload in Cryptex's Vault subsections is sourced from a permissively-licensed
 corpus, a research paper's openly-released artifacts, a public-domain Unicode reference,
 or a community-shared red-team write-up. This file is the authoritative provenance
-record for all 276 bundled seed items shipped under `app/src/lib/vault/seeds/` (and
+record for all 299 bundled seed items shipped under `app/src/lib/vault/seeds/` (and
 the small WordNet helper subset under `app/src/lib/fuzzer/`).
 
 Cryptex OSS itself is MIT-licensed (see [`/LICENSE`](../../../../LICENSE)). Bundled
@@ -40,8 +40,10 @@ license strings appear in the corpus.
 | `seeds/tool-result-lab.json` | 17 | MIT, CC-BY-4.0 |
 | `seeds/harmbench.json` | 6 | MIT |
 | `seeds/strongreject.json` | 5 | MIT |
+| `seeds/jbb.json` | 6 | MIT |
+| `seeds/fingerprinter.json` | 6 | MIT |
 | `fuzzer/wordnet-subset.json` | ~55 | WordNet (BSD-style) |
-| **Total bundled vault items** | **287** | — |
+| **Total bundled vault items** | **299** | — |
 
 ## Source-by-source breakdown
 
@@ -117,6 +119,33 @@ fixtures designed to exercise the judge prompt's full output range.
 | Count | Source | URL | License | Attribution |
 |---:|---|---|---|---|
 | 5 | Souly et al. (2024) StrongREJECT paper — rubric and judge prompt | <https://arxiv.org/abs/2402.10260> | MIT (Cryptex-authored fixtures; rubric attribution to original paper) | Souly, A. et al. "A StrongREJECT for Empty Jailbreaks." arXiv:2402.10260, 2024. Project page: <https://strong-reject.github.io>. |
+
+### JailbreakBench (`seeds/jbb.json`, 6 items)
+
+Custom (goal, category, domain) behavior templates extending the bundled
+JBB 40-entry subset (Chao et al. 2024). 3 harmful (cybersecurity MFA bypass,
+fabricated health misinformation, stalker OSINT workflow) + 3 benign
+"over-refusal canaries" (vaccine-adjuvant explainer, CTF write-up, ibuprofen
+dosing). Designed to catch both under-refusal and over-refusal regressions
+across different defense families.
+
+| Count | Source | URL | License | Attribution |
+|---:|---|---|---|---|
+| 6 | Chao et al. (2024) JailbreakBench paper — behavior taxonomy + over-refusal framing | <https://arxiv.org/abs/2404.01318> | MIT (Cryptex-authored extension under repo MIT; paper taxonomy attribution preserved) | Chao, P. et al. "JailbreakBench: An Open Robustness Benchmark for Jailbreaking Large Language Models." arXiv:2404.01318, 2024. Project page: <https://jailbreakbench.github.io>. |
+
+### Defense Fingerprinter (`seeds/fingerprinter.json`, 6 items)
+
+Custom probes for the defense fingerprinter, illustrating how to extend
+its 40-probe calibrated set. 2 benign canaries (daily routine, medical
+dosing), 2 borderline probes (OSCP-style CTF question, pharmacology
+adverse-event), and 2 adversarial probes (system-prompt extraction,
+synthetic-stalker scenario). Cryptex-authored — designed to elicit
+defense-family-revealing refusal language without being real harmful
+instructions.
+
+| Count | Source | URL | License | Attribution |
+|---:|---|---|---|---|
+| 6 | Cryptex-authored probes for defense-family fingerprinting | n/a | MIT (Cryptex contribution under repo MIT) | Cryptex OSS contributors |
 
 ### Tool-Result Lab (`seeds/tool-result-lab.json`, 17 items)
 

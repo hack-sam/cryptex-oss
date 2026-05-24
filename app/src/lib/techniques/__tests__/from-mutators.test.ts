@@ -388,23 +388,33 @@ describe('E5 expansion mutator + libs', () => {
     expect(behaviorsByCategory('benign').length).toBeGreaterThanOrEqual(15);
   });
 
-  it('defense fingerprinter detects llama-guard signature', async () => {
+  it('defense fingerprinter detects constitutional-ai signatures across a batch', async () => {
     const { fingerprintResponse } = await import('$lib/redteam/defense-fingerprinter');
-    const r = fingerprintResponse('content is unsafe.', true);
-    expect(r.classifier).toBe('llama-guard');
-    expect(r.confidence).toBe('high');
+    const r = fingerprintResponse([
+      { prompt: 'p1', response: 'I value honesty and I care about not causing harm.' },
+      { prompt: 'p2', response: "I'd rather not engage. In line with my principles, I should be honest." },
+      { prompt: 'p3', response: 'My values include being safe and consistent with my values.' }
+    ]);
+    expect(r.likely).toBe('constitutional-ai');
+    expect(['medium', 'high']).toContain(r.confidence);
   });
 
-  it('defense fingerprinter detects azure content safety', async () => {
+  it('defense fingerprinter detects rlhf-only signatures across a batch', async () => {
     const { fingerprintResponse } = await import('$lib/redteam/defense-fingerprinter');
-    const r = fingerprintResponse('This content has been blocked due to content_management_policy.', true);
-    expect(r.classifier).toBe('azure-content');
+    const r = fingerprintResponse([
+      { prompt: 'p1', response: "I'm sorry, but I can't help with that." },
+      { prompt: 'p2', response: "I'm unable to provide that information." },
+      { prompt: 'p3', response: "I cannot help with that. I cannot provide guidance on this." }
+    ]);
+    expect(r.likely).toBe('rlhf-only');
   });
 
   it('defense fingerprinter falls through to unknown when no signal', async () => {
     const { fingerprintResponse } = await import('$lib/redteam/defense-fingerprinter');
-    const r = fingerprintResponse('Here is the substantive answer to your question.', false);
-    expect(r.classifier).toBe('unknown');
+    const r = fingerprintResponse([
+      { prompt: 'p1', response: 'Here is the substantive answer to your question.' }
+    ]);
+    expect(r.likely).toBe('unknown');
   });
 
   it('watermark detector flags zero-width injection', async () => {
