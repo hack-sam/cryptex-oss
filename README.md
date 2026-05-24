@@ -4,11 +4,12 @@
   file (GitHub silently hides broken images in the centered <p> wrapper).
 -->
 <p align="center">
-  <img src="docs/Tool-bar.png" alt="Cryptex OSS" width="900">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="docs/Tool-bar-dark.png">
+    <img src="docs/Tool-bar.png" alt="Cryptex OSS Banner" width="100%">
+  </picture>
 </p>
-
 <h1 align="center">Cryptex OSS</h1>
-
 <p align="center">
   <strong>Open-source LLM red-teaming toolkit.</strong><br>
   159 transforms · 36 mutators · 8 classifiers · 4 composites · 25 tool surfaces.<br>
@@ -34,7 +35,7 @@
 
 ---
 
-## What is Cryptex?
+## What is Cryptex ?
 
 Cryptex OSS is the lab bench for adversarial-prompt and encoding research. It bundles **159 text transformers** (encodings, classical ciphers, Unicode tricks, steganography, ancient scripts) with **25 specialized tool surfaces** — 10 technique workbenches plus 15 red-team labs covering 2024-2026 jailbreak literature (HarmBench, StrongREJECT, JailbreakBench, indirect injection, glitch tokens, adversarial suffixes, defense fingerprinting, watermarking).
 
