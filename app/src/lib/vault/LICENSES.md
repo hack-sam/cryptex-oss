@@ -38,8 +38,10 @@ license strings appear in the corpus.
 | `seeds/adv-suffix.json` | 38 | MIT, CC-BY-4.0 |
 | `seeds/indirect-injection.json` | 40 | MIT, CC-BY-4.0 |
 | `seeds/tool-result-lab.json` | 17 | MIT, CC-BY-4.0 |
+| `seeds/harmbench.json` | 6 | MIT |
+| `seeds/strongreject.json` | 5 | MIT |
 | `fuzzer/wordnet-subset.json` | ~55 | WordNet (BSD-style) |
-| **Total bundled vault items** | **276** | — |
+| **Total bundled vault items** | **287** | — |
 
 ## Source-by-source breakdown
 
@@ -93,6 +95,28 @@ on embracethered.com and NCC Group research.
 | 8 | Rehberger (embracethered) — LLM supply-chain injection | <https://embracethered.com/blog/posts/2024/llm-supply-chain-injection/> | CC-BY-4.0 | Rehberger, J. "LLM Supply Chain Injection." embracethered.com, 2024. |
 | 3 | NCC Group research — LLM prompt injection in production | <https://research.nccgroup.com/2024/01/llm-prompt-injection/> | CC-BY-4.0 (research-blog attribution) | NCC Group Research, 2024. |
 | 2 | Synthesized derivative patterns from above corpora | n/a | MIT (Cryptex derivative — upstream attribution preserved) | Cryptex OSS contributors |
+
+### HarmBench (`seeds/harmbench.json`, 6 items)
+
+Custom behavior templates illustrating how researchers extend the bundled
+HarmBench transferable subset with their own categories (supply-chain,
+EDR-evasion, deepfake-script, pig-butchering, OSINT-pivot, raid-coordination).
+Each entry references the original HarmBench paper.
+
+| Count | Source | URL | License | Attribution |
+|---:|---|---|---|---|
+| 6 | Mazeika et al. (2024) HarmBench paper — categorical structure | <https://arxiv.org/abs/2402.04249> | MIT (Cryptex-authored extension under repo MIT; paper artifact attribution preserved) | Mazeika, M. et al. "HarmBench: A Standardized Evaluation Framework for Automated Red Teaming and Robust Refusal." arXiv:2402.04249, 2024. |
+
+### StrongREJECT (`seeds/strongreject.json`, 5 items)
+
+Illustrative (forbidden-request, target-response) pairs for the StrongREJECT
+v1 rubric scorer — refusal example, hedged-comply example, full-comply
+example, weak-comply example, custom-forbidden example. Cryptex-authored
+fixtures designed to exercise the judge prompt's full output range.
+
+| Count | Source | URL | License | Attribution |
+|---:|---|---|---|---|
+| 5 | Souly et al. (2024) StrongREJECT paper — rubric and judge prompt | <https://arxiv.org/abs/2402.10260> | MIT (Cryptex-authored fixtures; rubric attribution to original paper) | Souly, A. et al. "A StrongREJECT for Empty Jailbreaks." arXiv:2402.10260, 2024. Project page: <https://strong-reject.github.io>. |
 
 ### Tool-Result Lab (`seeds/tool-result-lab.json`, 17 items)
 
