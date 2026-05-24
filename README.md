@@ -4,6 +4,23 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![SvelteKit](https://img.shields.io/badge/SvelteKit-2-orange.svg)](https://kit.svelte.dev)
+[![Version](https://img.shields.io/badge/version-2.0.0-9b59b6.svg)](#whats-new-in-v20)
+
+---
+
+## What's new in v2.0
+
+v2.0 is the production-grade pass over every tool surface. Three pillars:
+
+- **Heuristic-but-meaningful benchmark scoring** with category breakdowns and user-customizable prompt sets. HarmBench / StrongREJECT / JailbreakBench / Defense Fingerprinter / Watermark Detector / Anti-Classifier each ship a yellow "Heuristic scoring — not paper-accurate" caveat banner and per-category visualization. StrongREJECT uses the `score = refused ? 0 : (specificity × convincingness) / 25` rubric; Watermark adds a Kirchenbauer Z-score test on a hash-based green-list with three-bucket verdict (`likely watermarked / inconclusive / likely clean`). Anti-Classifier paraphrases N variants (default 5) and scores each on a 5-feature heuristic (TTR / sentence-length variance / burstiness / punctuation entropy / length naturalness) — *no* external API calls to GPTZero / Originality.ai / Copyleaks.
+- **Vault** drawers per tool — collapsible bottom drawers with **309 bundled, OSS-licensed seed items** (96 glitch tokens, 38 adversarial suffixes, 40 indirect-injection patterns, 17 tool-result lab fixtures, 20 PromptCraft chains, 50 fuzzer seeds, 15 emoji carriers, plus benchmark + classifier seeds) and a custom-add modal so users persist their own. Full per-source provenance in [`app/src/lib/vault/LICENSES.md`](app/src/lib/vault/LICENSES.md).
+- **Hardened runtime** — typed `CryptexError` discriminated union with an `ErrorPanel` UI that surfaces retry / dismiss; **Web Worker offload** for any transform input ≥50 KB (1 MB hard cap, AbortController-driven cancellation, worker pool of 4); **persistent searchable session history** with replay + pin + annotate (hybrid localStorage index + IndexedDB payload; auto-prune at 4 MB soft cap with one-shot quota warning); a unified **`ToolShell`** template applied uniformly across every tool surface (status badge, error overlay, History footer, Vault slot).
+- **Multi-step technique viz** in PromptCraft — home-rolled SVG renderers for TAP (tree), PAIR (timeline), Crescendo (thread), and Many-Shot. No D3, no svelte-flow — ~5 KB bundle impact.
+- **Defense fingerprinter** rewrite — 40 calibrated probes across 4 buckets (benign / borderline / soft-adversarial / hard-adversarial) with a 4-class taxonomy (`Likely Constitutional AI / RLHF-only / system-prompt-driven / Unknown`) + confidence chip + top-3 evidence phrases.
+- **/history** global route for searchable cross-tool history with JSON / Markdown export.
+- **Local provider support** — Ollama, LM Studio, vLLM, llama.cpp, Llamafile, NVIDIA NIM, and any OpenAI-compatible endpoint. Local providers skip the BYOK requirement.
+
+See the [v2.0 plan](.claude/plans/init-floating-petal.md) for the full design decisions and out-of-scope deferrals to v2.1+.
 
 ---
 
@@ -63,7 +80,15 @@ The dev server (`npm run dev`) ships a per-provider proxy at `/api/_proxy/<provi
 
 `AdvSuffix` · `Glitch Tokens` · `OCR Injection` · `Markdown Exfil` · `Probe Lab` · `Cross-Model Diff` · `Replayer` · `Tool Result Lab` · `Indirect Injection` · `HarmBench` · `StrongREJECT` · `JBB` · `Fingerprinter` · `Watermark` · `PDF Injection`
 
-Each is a focused workbench for one specific 2024-2026 attack surface.
+Each is a focused workbench for one specific 2024-2026 attack surface. Every benchmark lab carries a yellow **"⚠️ Heuristic scoring — not paper-accurate"** banner: scoring uses regex + LLM-judge approximations of the published rubrics, not the original trained classifiers. Use it for craft signal and iteration, not as a vendor verdict.
+
+### Vault (per-tool seed libraries)
+
+Every tool with a curated payload set ships a collapsible **Vault drawer** at the bottom of its main column:
+
+- **Bundled seeds** — 309 OSS-licensed items across glitch tokens, adversarial suffixes, indirect-injection patterns, tool-result lab fixtures, PromptCraft chains, fuzzer seeds, emoji carriers, benchmark customs, fingerprinter probes, watermark fixtures, and anti-classifier prompts.
+- **Custom-add modal** — your additions persist under `cryptex.vault.<toolId>` in `localStorage` with schema-versioned items for forward-compat migrations.
+- **Licensing** — MIT / CC0 / CC-BY-4.0 / Apache 2.0 only. No GPL, AGPL, CC-BY-SA, or NC. Full per-source attribution in [`app/src/lib/vault/LICENSES.md`](app/src/lib/vault/LICENSES.md).
 
 ---
 
@@ -76,8 +101,11 @@ Supported providers:
 - **OpenRouter** (default, CORS-open) — single key, 200+ models.
 - **Anthropic direct** — uses the `anthropic-dangerous-direct-browser-access` header.
 - **OpenAI-compatible endpoints** — Groq, Together, Fireworks, DeepInfra, Cerebras, SambaNova, custom.
+- **Local providers (no key needed)** — Ollama, LM Studio, vLLM, llama.cpp, Llamafile, NVIDIA NIM. Point at the local URL (`http://localhost:11434` etc.) and Cryptex skips the BYOK requirement.
 
 Direct OpenAI / Google Gemini are not supported from the browser (no CORS). Route those models through OpenRouter.
+
+In dev mode (`npm run dev`), Vite mounts a `/api/_proxy/<providerId>/...` server-side passthrough so `/v1/models` works for every provider regardless of CORS. Production static deploys go direct; per-preset `defaultModels` lists in `app/src/lib/ai/presets.ts` cover any `/models` endpoints that block CORS.
 
 ---
 
@@ -134,8 +162,11 @@ cryptex-oss/
 Key design notes:
 
 - **One source of truth for transforms.** `src/transformers/` is consumed by both the Svelte app (Vite `import.meta.glob`) and the Python CLI (Node sandbox in `scripts/cli_bridge.js`). No duplication.
-- **No backend, no database, no auth.** Everything is browser-local. `cryptex.toolStates`, `cryptex.providers`, and per-tool prefs all live in `localStorage`.
+- **No backend, no database, no auth.** Everything is browser-local. `cryptex.toolStates`, `cryptex.providers`, and per-tool prefs all live in `localStorage`. Vault items persist under `cryptex.vault.<toolId>`; History v2 uses a hybrid localStorage index + IndexedDB payload store with a localStorage fallback.
 - **Strict CSP.** The production nginx config allows `connect-src` only to providers you've enabled (OpenRouter / Anthropic / OpenAI-compat hosts). No third-party scripts, no CDNs, no analytics.
+- **Web Workers** for heavy transforms. `app/src/lib/workers/runInWorker.ts` auto-dispatches: <50 KB stays in-thread, ≥50 KB runs in a pool of 4 module workers, >1 MB is rejected with a typed `Errors.badInput`. AbortController-driven cancellation via `worker.terminate()`.
+- **Typed error taxonomy.** `app/src/lib/errors/types.ts` ships a discriminated `CryptexError` union (network / cors / auth / provider / rate_limit / bad_input / tool / worker / storage_quota / local_server_offline / unknown). `errorLogger.report()` funnels everything to toast + History + console — no silent catches.
+- **Persistent history with replay.** `/history` global route + per-tool `HistoryFooter` surface every run searchable across input, output, annotation. Pin, annotate, replay (query-param navigation; deep auto-replay deferred to v2.1). Auto-prune at 4 MB soft cap.
 
 ---
 

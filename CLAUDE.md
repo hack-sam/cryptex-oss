@@ -8,6 +8,8 @@ Cryptex OSS is a **SvelteKit 2 + Svelte 5 + shadcn-svelte static-site app** for 
 
 A Python CLI (`cryptex-cli`, managed with `uv`) shells out to Node to execute the canonical transformers in `src/transformers/`, so there is **one source of truth** for transforms — both the SvelteKit app and the CLI import the same 159 transformer files.
 
+The v2.0 milestone (commits beginning with the `feat(core)`/`feat(redteam)`/`feat(history)` series) hardened every tool surface with a unified `ToolShell` template, typed `CryptexError` taxonomy, Web Worker offloading for ≥50 KB transform inputs, a per-tool **Vault** drawer (309 bundled OSS-licensed seed items + custom-add), and a persistent searchable session history via the v2 store. See the **v2.0 conventions** section below before adding new surfaces.
+
 ## Commands
 
 ### Primary (SvelteKit app)
@@ -131,8 +133,94 @@ Build args plumbed through `Dockerfile` + `docker-compose.yml`:
 
 That is the only build-time env.
 
+## v2.0 conventions (applies to every new tool surface)
+
+### `ToolShell` template — every tool wraps in it
+
+`app/src/lib/components/shell/ToolShell.svelte` is the keystone. Every route under `/transforms`, `/decode`, `/emoji`, `/gibberish`, `/tokenizer`, `/tokenade`, `/bijection`, `/fuzzer`, `/promptcraft`, `/anticlassifier`, and every `/redteam/*` lab passes its main content as the `children` snippet:
+
+```svelte
+<ToolShell
+  toolId="my-tool"
+  title="My Tool"
+  accent="tool"
+  description="One-line tool summary."
+  usage={{ title: 'My Tool · Usage', bullets: ['…', '…'] }}
+>
+  <!-- main content -->
+  {#snippet vault()}
+    <VaultSection toolId="my-tool" …>…</VaultSection>
+  {/snippet}
+</ToolShell>
+```
+
+ToolShell auto-renders the `<svelte:head><title>`, the `<h1>` with optional accent word, the status badge (Ready/Running/Done/Error/Cancelled) with built-in Cancel, the optional Vault slot, and the `HistoryFooter`. It also surfaces any current `CryptexError` from `activeRuns` via `ErrorPanel` above the children.
+
+### Vault drawers — `cryptex.vault.<toolId>` + bundled seeds
+
+Tools with curated payload libraries get a Vault drawer in their `vault` snippet:
+
+- Bundled seeds live under `app/src/lib/vault/seeds/<toolId>.json` (loaded via Vite `import.meta.glob`, eager).
+- Each item carries `schemaVersion: 1`, `source: 'bundled' | 'user'`, plus a typed `payload` field.
+- User customs persist under `cryptex.vault.<toolId>` in `localStorage`.
+- License posture is hard-locked: **MIT / CC0 / CC-BY-4.0 / Apache 2.0 only — NO GPL, AGPL, CC-BY-SA, or NC**. Every new seed file gets a provenance row added to `app/src/lib/vault/LICENSES.md`.
+
+### Typed errors — `CryptexError` + `errorLogger.report()`
+
+`app/src/lib/errors/types.ts` exports a discriminated `CryptexError` union and `Errors.*` factories (`Errors.network`, `Errors.badInput`, `Errors.rateLimit`, `Errors.storageQuota`, `Errors.tool`, `Errors.worker`, etc.). **No silent catches**:
+
+```ts
+try { … } catch (err) {
+  errorLogger.report(isCryptexError(err) ? err : Errors.tool(err));
+  activeRuns.fail(TOOL_ID, msg);  // ToolShell will surface via ErrorPanel
+}
+```
+
+### Web Worker offload — `runInWorker` for ≥50 KB
+
+Any transformer call where input may exceed 50 KB goes through `runInWorker`:
+
+```ts
+import { runInWorker } from '$lib/workers/runInWorker';
+const out = await runInWorker({
+  task: 'encode',                      // or 'decode'
+  transformerName: 'base64',
+  args: { text, options: {} },
+  signal: controller.signal
+});
+```
+
+`runInWorker` dispatches in-thread under 50 KB, uses a worker pool of 4 between 50 KB and 1 MB, and throws `Errors.badInput` over 1 MB. Cancellation via `AbortController.signal` → `worker.terminate()`.
+
+### Heuristic benchmark caveat — yellow banner is mandatory
+
+Every benchmark page (HarmBench, StrongREJECT, JBB, Fingerprinter, Watermark, Anti-Classifier) renders this banner above results:
+
+> ⚠️ Heuristic scoring — not paper-accurate
+
+Copy the exact markup from `app/src/routes/redteam/harmbench/+page.svelte`.
+
+### Session history v2 — `history.record()` (sessionLog auto-funnels)
+
+Legacy `sessionLog.record({...})` calls automatically fan out to `history.record({...})` via the compat shim in `app/src/lib/stores/sessionLog.svelte.ts`. New tools can call `history.record()` directly:
+
+```ts
+import { history } from '$lib/history/store.svelte';
+await history.record({
+  toolId: TOOL_ID,
+  startedAt: t0,
+  status: 'done',
+  input, output,
+  params: { … }
+});
+```
+
+The store uses a hybrid layout (localStorage index + IndexedDB payloads, with a 50-entry localStorage fallback) and auto-prunes at 4 MB with a one-shot quota toast.
+
 ## When adding things
 
 - **New transformer**: create `src/transformers/<category>/<name>.js`, run `npm run build`, add coverage to `tests/test_universal.js`. Pick `priority` using the guide in `BaseTransformer.js`.
-- **New tool surface**: create the Svelte component in `app/src/lib/components/tools/<tool>/` (or `app/src/lib/components/redteam/<tool>/`), add the route at `app/src/routes/<tool>/+page.svelte`, and register the tab in `app/src/lib/components/shell/TabRail.svelte`.
+- **New tool surface**: create the Svelte component in `app/src/lib/components/tools/<tool>/` (or `app/src/lib/components/redteam/<tool>/`), add the route at `app/src/routes/<tool>/+page.svelte` wrapping content in `<ToolShell toolId="…" title="…">`, and register the tab in `app/src/lib/components/shell/TabRail.svelte`. Add a Vault drawer if the tool has a curated payload library; mandatory 1 MB input cap via `Errors.badInput`; route any error through `errorLogger.report()`.
 - **New mutator/classifier/composite**: add an entry to `app/src/lib/techniques/from-mutators.ts` (or the relevant sibling). It will surface in PromptCraft and the technique registry automatically.
+- **New benchmark or scoring module**: heuristic only (no paper-accurate trained classifiers shipped). Render the yellow caveat banner. Use the LLM-judge prompt + JSON-tolerant parser + regex fallback pattern from `app/src/lib/redteam/strongreject-scorer.ts`.
+- **New seed bundle**: add `app/src/lib/vault/seeds/<toolId>.json`, register provenance + license in `app/src/lib/vault/LICENSES.md`, bump the total count footer line.

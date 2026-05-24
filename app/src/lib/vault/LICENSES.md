@@ -9,6 +9,9 @@ the small WordNet helper subset under `app/src/lib/fuzzer/`).
 Cryptex OSS itself is MIT-licensed (see [`/LICENSE`](../../../../LICENSE)). Bundled
 seed corpora retain their original licenses; this document records every one of them.
 
+See also: [`/README.md`](../../../../README.md#vault-per-tool-seed-libraries) for the
+user-facing description of the Vault feature.
+
 ## License posture
 
 Cryptex OSS bundles ONLY seeds under permissive, OSS-compatible licenses:
