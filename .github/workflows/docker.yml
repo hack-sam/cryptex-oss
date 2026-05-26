@@ -1,5 +1,11 @@
 name: Docker build
 
+# Strategy: publish linux/amd64 unconditionally (the most common arch for
+# self-hosters on VPS), then attempt linux/arm64 as a best-effort multi-arch
+# manifest. If the QEMU action or arm64 build fails due to a transient
+# codeload.github.com hiccup, the workflow still leaves a working amd64
+# image at every tag. arm64 catches up on the next run.
+
 on:
   push:
     branches: [main, master]
@@ -23,7 +29,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -31,8 +37,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # QEMU enables linux/arm64 cross-build on the amd64 runner. If the
+      # codeload download flakes (transient GitHub infra issue, no retry by
+      # default), we tolerate the failure and fall back to amd64-only below.
       - name: Set up QEMU (multi-arch)
+        id: qemu
         uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+        continue-on-error: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -58,13 +71,26 @@ jobs:
             type=sha,prefix=sha-,format=short
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
 
-      - name: Build & push multi-arch image
+      # Pick the platform set based on whether QEMU came up. Always publish
+      # amd64; only include arm64 if QEMU succeeded.
+      - name: Resolve build platforms
+        id: platforms
+        run: |
+          if [ "${{ steps.qemu.outcome }}" = "success" ]; then
+            echo "value=linux/amd64,linux/arm64" >> "$GITHUB_OUTPUT"
+            echo "QEMU ready — building multi-arch (amd64 + arm64)."
+          else
+            echo "value=linux/amd64" >> "$GITHUB_OUTPUT"
+            echo "::warning::QEMU setup failed; publishing linux/amd64 only. arm64 will catch up on the next run."
+          fi
+
+      - name: Build & push image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ steps.platforms.outputs.value }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -100,3 +126,19 @@ jobs:
           curl -s -o /dev/null -w "%{http_code}  /settings/\n"    http://localhost:8080/settings/
           docker logs cryptex-ci | tail -20
           docker stop cryptex-ci && docker rm cryptex-ci
+
+      - name: Publish summary
+        if: always()
+        run: |
+          echo "## Docker build summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Platforms attempted: \`${{ steps.platforms.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.qemu.outcome }}" != "success" ]; then
+            echo "- ⚠️  QEMU setup failed; arm64 was skipped this run." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "- Image tags pushed (if not PR): \`${{ steps.meta.outputs.tags }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pull from a clean machine:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```bash' >> "$GITHUB_STEP_SUMMARY"
+          echo 'docker run -d --name cryptex --restart unless-stopped \' >> "$GITHUB_STEP_SUMMARY"
+          echo '  -p 8080:80 ghcr.io/m4xx101/cryptex-oss:latest' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
