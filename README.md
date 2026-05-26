@@ -8,12 +8,9 @@
     docs/img/screenshot-harmbench.png       third feature shot
 -->
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: light)" srcset="docs/Tool-bar-dark.png">
-    <img src="docs/Tool-bar.png" alt="Cryptex OSS" width="100%">
-  </picture>
-</p>
+<img src="docs/img/logo.png" alt="Cryptex OSS" width="7%">
 <h1 align="center">Cryptex OSS</h1>
+</p>
 <p align="center">
   <strong>Open-source LLM red-team lab.</strong><br>
   159 transforms, 25 tool surfaces, BYOK gateway. Runs in your browser.
@@ -40,7 +37,7 @@
 </p>
 
 <p align="center">
-  <a href="https://cryptex.m4xx.cfd"><strong>Try live</strong></a>
+  <a href="https://cryptex.m4xx.cfd/?ref=github.com"><strong>Try live</strong></a>
   &nbsp;·&nbsp;
   <a href="#self-host-in-30-seconds"><strong>Self-host in 30 seconds</strong></a>
   &nbsp;·&nbsp;
@@ -52,9 +49,7 @@
 ---
 
 <p align="center">
-  <img src="docs/img/screenshot-transforms.png" alt="Transforms workbench" width="280">
-  <img src="docs/img/screenshot-promptcraft.png" alt="PromptCraft multi-step viz" width="280">
-  <img src="docs/img/screenshot-harmbench.png" alt="HarmBench heuristic scoring" width="280">
+  <img src="docs/img/screenshot-promptcraft.png" alt="PromptCraft multi-step viz" width="100%">
 </p>
 <p align="center">
   <sub>Left: 159 transformers, encode + decode, options per transform. Middle: PromptCraft multi-step viz (TAP tree shown). Right: HarmBench heuristic scoring with per-category breakdown.</sub>
@@ -122,7 +117,8 @@ npm run dev          # http://localhost:5173 with hot reload
 npm run build        # static bundle in app/build/
 ```
 
-Prereqs: Node 20+, npm. Optional: [`uv`](https://docs.astral.sh/uv/) for the Python CLI.
+Prereqs: Node 20.19+ or 22.12+ (not plain “Node 20”), npm. Install deps in app/, then npm run dev.
+Optional: [`uv`](https://docs.astral.sh/uv/) for the Python CLI.
 </details>
 
 <details>
@@ -315,9 +311,16 @@ MIT. See [`LICENSE`](LICENSE).
 Cryptex OSS bundles small red-team corpora (glitch tokens, adversarial suffixes, indirect-injection patterns, tool-result fixtures, emoji carriers, fuzzer seeds, PromptCraft chains, plus a tiny WordNet subset) sourced from openly-licensed papers, community write-ups, and public-domain Unicode references. Every bundled item is MIT, CC-BY-4.0, or CC0. Per-source attribution lives in [`app/src/lib/vault/LICENSES.md`](app/src/lib/vault/LICENSES.md). No GPL, AGPL, CC-BY-SA, or CC-BY-NC material is bundled.
 
 ---
-
 <p align="center">
-  <strong>Live:</strong> <a href="https://cryptex.m4xx.cfd">cryptex.m4xx.cfd</a><br>
-  <strong>Source:</strong> <a href="https://github.com/m4xx101/cryptex-oss">github.com/m4xx101/cryptex-oss</a><br>
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="docs/Tool-bar-dark.png">
+    <img src="docs/Tool-bar.png" alt="Cryptex OSS" width="100%">
+  </picture>
+</p>
+<p align="left">
+  <strong>Live:</strong> <a href="https://cryptex.m4xx.cfd/?ref=github.com">cryptex.m4xx.cfd</a> 
+  <br>
+  <strong>Source:</strong> <a href="https://github.com/m4xx101/cryptex-oss">github.com/m4xx101/cryptex-oss</a> 
+  <br>
   <strong>Recipes:</strong> <a href="docs/USAGE.md">docs/USAGE.md</a>
 </p>
