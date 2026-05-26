@@ -1,0 +1,162 @@
+[
+  {
+    "id": "abl-hf-deepseek-r1-abliterated",
+    "schemaVersion": 1,
+    "title": "DeepSeek-R1-distill abliterated (community)",
+    "description": "Refusal-direction-ablated variant of DeepSeek-R1-distill-Llama-8B (and 70B). Run via Ollama or LM Studio, point the local-provider model field at the HF id below.",
+    "payload": {
+      "hfId": "huihui-ai/DeepSeek-R1-Distill-Llama-8B-abliterated",
+      "baseFamily": "DeepSeek-R1",
+      "notes": "Community-maintained. Confirm hashes against the upstream HuggingFace repo before deploying."
+    },
+    "tags": ["example", "abliterated", "deepseek-r1", "ollama-friendly"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/DeepSeek-R1-Distill-Llama-8B-abliterated",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-qwen3-abliterated",
+    "schemaVersion": 1,
+    "title": "Qwen3 abliterated (community)",
+    "description": "Refusal-direction-ablated Qwen3 family. Multiple sizes; pick the variant your hardware supports.",
+    "payload": {
+      "hfId": "huihui-ai/Qwen3-7B-abliterated",
+      "baseFamily": "Qwen3",
+      "notes": "Various size variants exist; check the huihui-ai or mlabonne HF org for the latest."
+    },
+    "tags": ["example", "abliterated", "qwen3"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-llama-3.1-abliterated",
+    "schemaVersion": 1,
+    "title": "Llama-3.1-8B abliterated (mlabonne)",
+    "description": "The original abliteration recipe author's own Llama-3.1-8B variant. Reference implementation; useful for comparing community abliterations against the baseline technique.",
+    "payload": {
+      "hfId": "mlabonne/Llama-3.1-8B-Instruct-abliterated",
+      "baseFamily": "Llama-3.1",
+      "notes": "Authored by Maxime Labonne, who popularized the abliteration technique in June 2024."
+    },
+    "tags": ["example", "abliterated", "llama-3.1", "reference"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/mlabonne/Llama-3.1-8B-Instruct-abliterated",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-llama-3.2-abliterated",
+    "schemaVersion": 1,
+    "title": "Llama-3.2-3B abliterated (community)",
+    "description": "Smaller Llama-3.2-3B abliterated variant. Fits on consumer hardware (8GB VRAM); useful for fast local iteration without a server-class GPU.",
+    "payload": {
+      "hfId": "huihui-ai/Llama-3.2-3B-Instruct-abliterated",
+      "baseFamily": "Llama-3.2",
+      "notes": "3B parameter variant. Quality is lower than 8B but runs on a laptop GPU."
+    },
+    "tags": ["example", "abliterated", "llama-3.2", "consumer-hw"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Llama-3.2-3B-Instruct-abliterated",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-mistral-7b-uncensored",
+    "schemaVersion": 1,
+    "title": "Mistral-7B Uncensored (community fine-tune)",
+    "description": "Not strict abliteration; a community fine-tune that strips most refusal behaviors. Useful baseline for testing what 'uncensored' means without the weight-edit technique.",
+    "payload": {
+      "hfId": "ehartford/dolphin-2.2.1-mistral-7b",
+      "baseFamily": "Mistral-7B",
+      "notes": "Eric Hartford's Dolphin fine-tune series. Fine-tuned, not abliterated, but behavioral results similar."
+    },
+    "tags": ["example", "uncensored", "mistral-7b", "fine-tuned"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/ehartford/dolphin-2.2.1-mistral-7b",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-gemma-2-abliterated",
+    "schemaVersion": 1,
+    "title": "Gemma-2-9B abliterated (community)",
+    "description": "Refusal-direction-ablated Gemma-2-9B-it. Useful for testing whether Cryptex attack techniques transfer to Google base models when their alignment layer is removed.",
+    "payload": {
+      "hfId": "huihui-ai/gemma-2-9b-it-abliterated",
+      "baseFamily": "Gemma-2",
+      "notes": "Gemma-2-9B-it abliteration. Compare against vanilla Gemma-2-9B-it to isolate alignment-layer behaviors from base-model capabilities."
+    },
+    "tags": ["example", "abliterated", "gemma-2"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/gemma-2-9b-it-abliterated",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-qwen2.5-coder-abliterated",
+    "schemaVersion": 1,
+    "title": "Qwen2.5-Coder abliterated (for code-generation research)",
+    "description": "Abliterated coder variant. Used for evaluating code-side guardrails (Should the model refuse to write certain code patterns?).",
+    "payload": {
+      "hfId": "huihui-ai/Qwen2.5-Coder-7B-Instruct-abliterated",
+      "baseFamily": "Qwen2.5-Coder",
+      "notes": "Coder-specialized. Useful for testing whether code-side safety training survives abliteration."
+    },
+    "tags": ["example", "abliterated", "qwen2.5-coder", "code-research"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Qwen2.5-Coder-7B-Instruct-abliterated",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-llama-3.3-70b-abliterated",
+    "schemaVersion": 1,
+    "title": "Llama-3.3-70B abliterated (server-class)",
+    "description": "Largest Llama-3.3-70B abliterated variant. Requires server-class GPU (A100/H100 or 2x4090); too heavy for most laptops but high-quality output.",
+    "payload": {
+      "hfId": "huihui-ai/Llama-3.3-70B-Instruct-abliterated",
+      "baseFamily": "Llama-3.3",
+      "notes": "70B parameters. Run via vLLM or llama.cpp Q4_K_M GGUF on 2x4090. Avoid full FP16 on consumer hardware."
+    },
+    "tags": ["example", "abliterated", "llama-3.3", "70b", "server-class"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Llama-3.3-70B-Instruct-abliterated",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-deepseek-v3-abliterated",
+    "schemaVersion": 1,
+    "title": "DeepSeek-V3 abliterated (community)",
+    "description": "Refusal-ablated DeepSeek-V3-Lite (MoE family). Smaller than full DeepSeek-V3 but inherits much of its capability ceiling.",
+    "payload": {
+      "hfId": "huihui-ai/DeepSeek-V3-Lite-abliterated",
+      "baseFamily": "DeepSeek-V3",
+      "notes": "MoE architecture. Memory profile is large despite the Lite designation."
+    },
+    "tags": ["example", "abliterated", "deepseek-v3", "moe"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/DeepSeek-V3-Lite-abliterated",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-phi-3-abliterated",
+    "schemaVersion": 1,
+    "title": "Phi-3-mini abliterated (consumer hardware)",
+    "description": "Microsoft Phi-3-mini-4k-instruct refusal-ablated. 3.8B params; fits on a laptop. Useful for testing whether Phi family alignment training survives abliteration.",
+    "payload": {
+      "hfId": "huihui-ai/Phi-3-mini-4k-instruct-abliterated",
+      "baseFamily": "Phi-3",
+      "notes": "Smallest Phi-3 variant. Quality below Llama-3.x but extremely fast inference."
+    },
+    "tags": ["example", "abliterated", "phi-3", "consumer-hw"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Phi-3-mini-4k-instruct-abliterated",
+    "license": "MIT",
+    "addedAt": 0
+  }
+]

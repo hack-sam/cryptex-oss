@@ -31,6 +31,7 @@
   import Brain from 'lucide-svelte/icons/brain';
   import Layers from 'lucide-svelte/icons/layers';
   import MessageSquareText from 'lucide-svelte/icons/message-square-text';
+  import Unplug from 'lucide-svelte/icons/unplug';
   import { onMount, tick } from 'svelte';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,7 +91,9 @@
     // v2.2 (Wave 10.6): SEAL stacked-cipher attack
     { href: '/redteam/stacked-cipher',     label: 'Stacked Cipher', icon: Layers,     status: 'live' },
     // v2.2 (Wave 10.7): Response Attack (AAAI 2026 context-priming)
-    { href: '/redteam/response-attack',    label: 'Response',    icon: MessageSquareText, status: 'live' }
+    { href: '/redteam/response-attack',    label: 'Response',    icon: MessageSquareText, status: 'live' },
+    // v2.2 (Wave 10.8): Abliteration probe + uncensored-model vault
+    { href: '/redteam/abliteration',       label: 'Abliteration', icon: Unplug,        status: 'live' }
   ];
 
   let list: HTMLOListElement | undefined = $state();
