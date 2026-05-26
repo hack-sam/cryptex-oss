@@ -2,6 +2,35 @@
 
 All notable changes to Cryptex OSS land here. Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). Versioning follows [SemVer](https://semver.org/).
 
+## [2.1.1] - 2026-05-25
+
+Svelte 5 reactivity hotfix wave. Resolves user-reported browser "Page Unresponsive" dialog on `/redteam/probe-lab` and `/redteam/indirect-injection`, plus two latent loops on `/promptcraft` and `/anticlassifier` first-mount with legacy unqualified model ids.
+
+### Fixed
+
+- **Probe Lab keystroke storm.** Hoisted `mutatorTechniques()` to a module-level constant so the 36-Technique catalog builds once at import time instead of on every keystroke. Debounced the task textarea by 200ms so the localTemplate-expansion pipeline only runs once per typing pause.
+- **Indirect Injection regenerate + history.record double-fire.** Introduced `debouncedHiddenInstruction` $state shadow lagging by 200ms; `effectiveInstruction` derives off the shadow; both `regenerate` and `history.record` effects wrap their writes in `untrack()` so result mutations cannot loop back into their own inputs.
+- **PromptCraft + Anti-Classifier modelPref normalizers.** Wrapped legacy-id normalization (`gpt-4o` -> `openrouter:gpt-4o`) in `untrack()` so the effect does not loop through `createPersistedState`'s localStorage round-trip.
+
+### Changed (perf)
+
+- **TransformTool.** Debounce `runInWorker` dispatch by 150ms with shared `activeController` cancellation. Typing at 60 chars/sec now spawns ~7 workers/sec instead of 60.
+- **Glitch Tokens.** Memoize the family-filtered base list once, then chain narrower filters off it. About 3x fewer array walks per keystroke into the search box.
+- **HistoryDrawer.** Gate the four-derived search + filter chain on `open` so the closed drawer no longer re-derives on every history mutation anywhere in the app.
+
+### Docs
+
+- README correctly positions <https://cryptex.m4xx.cfd> as a separate sibling product (different codebase, different feature set), not as a hosted copy of the OSS variant. The "Try it without installing" section was removed because it conflated the two.
+- Root `package.json` version bumped 2.1.0 -> 2.1.1.
+
+### Tests
+
+- +16 stability tests pinning the debounce + `untrack` contracts across the four fixed routes. Total 774 / 774 passing (was 758).
+
+### Image
+
+- `ghcr.io/m4xx101/cryptex-oss:v2.1.1` (multi-arch `linux/amd64` + `linux/arm64`). `:latest`, `:v2.1`, `:v2`, `:main` all point at the same SHA.
+
 ## [2.1.0] - 2026-05-24
 
 Repo trim + offensive usage guide + handcrafted README. No app code changed.
@@ -82,6 +111,7 @@ Initial open-source release.
 - Docker image + Dokploy-tuned `docker-compose.yml` + strict-CSP `nginx.conf`.
 - MIT license.
 
+[2.1.1]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.1.1
 [2.1.0]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.1.0
 [2.0.1]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.0.1
 [2.0.0]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.0.0

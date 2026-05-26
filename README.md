@@ -37,11 +37,11 @@
 </p>
 
 <p align="center">
-  <a href="https://cryptex.m4xx.cfd/?ref=github.com"><strong>Try live</strong></a>
-  &nbsp;·&nbsp;
   <a href="#self-host-in-30-seconds"><strong>Self-host in 30 seconds</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/USAGE.md"><strong>Offensive recipes</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#cryptex-production"><strong>Cryptex Production →</strong></a>
   &nbsp;·&nbsp;
   <a href="CHANGELOG.md"><strong>Changelog</strong></a>
 </p>
@@ -62,14 +62,6 @@
 Cryptex bundles 159 text transformers (encodings, classical ciphers, Unicode tricks, steganography, ancient scripts) with 25 specialized tool surfaces. Ten technique workbenches (Transform, Decode, Emoji stego, Gibberish, Tokenizer, Tokenade, Bijection, Fuzzer, PromptCraft, Anti-Classifier) and fifteen red-team labs covering the 2024 to 2026 jailbreak literature (HarmBench, StrongREJECT, JailbreakBench, indirect injection, glitch tokens, adversarial suffixes, defense fingerprinting, watermark forensics). It is the lab bench for adversarial-prompt and encoding research.
 
 Everything runs in your browser. No backend, no database, no telemetry. AI calls go from your browser direct to whichever provider you choose, with your BYOK key staying in `localStorage`. Open source under MIT. Same canonical 159 transformers feed both the SvelteKit app and the Python CLI, so adding one anywhere makes it available everywhere.
-
----
-
-## Try it without installing
-
-**[cryptex.m4xx.cfd](https://cryptex.m4xx.cfd)**. Full v2.0 instance, no signup, your BYOK key stays in your browser.
-
-The hosted instance only serves the static bundle from a CDN. No server-side request logging, no analytics, no telemetry. Same code, same Docker image, same nginx config.
 
 ---
 
@@ -160,13 +152,15 @@ Cryptex never phones home. Your hosted instance is your own.
 
 ## Cryptex Production
 
-Same 159 transforms, 25 surfaces, 309 vault seeds, and BYOK gateway live at <https://cryptex.m4xx.cfd>. The hosted variant adds three things the OSS variant deliberately leaves out:
+Cryptex Production at <https://cryptex.m4xx.cfd> is a **separate sibling product**, not a hosted copy of this repository. Different codebase, different feature surface, different release cadence. It is included here as a pointer for users whose workflow needs more than the OSS toolkit covers.
 
-- **Chat playground.** Full multi-turn conversation against any configured provider. Streams responses. Attach images and PDFs. Sticky system prompts. Per-conversation token-cost chip. The chat surface is a product, not a tool; it lives at the hosted URL.
+What Production has that the OSS variant does not:
+
+- **Chat playground.** Full multi-turn conversation against any configured provider. Streams responses. Attach images and PDFs. Sticky system prompts. Per-conversation token-cost chip.
 - **Attack-chain transforms inside chat.** Select any text in any chat turn (yours or the assistant's). Pipe it through the mutator pipeline (`layered_mutation`, `multi_layer_attack`, `best_of_k`, or any of the 36 mutators). The transformed text either replaces the selection or sends as a new turn. Build attacks iteratively against a target you are already in conversation with.
-- **Unrestricted model presets.** Pre-configured pointers at uncensored, abliterated, and community-fine-tuned Llama-class and Mistral-class models on permissive providers. No setup, no key wrangling. Pick the preset and go.
+- **Unrestricted model presets.** Pre-configured pointers at uncensored, abliterated, and community-fine-tuned Llama-class and Mistral-class models on permissive providers. No setup, no key wrangling.
 
-If your work needs the chat surface or the live in-conversation mutator pipeline, that is the variant. Free, no signup, your BYOK key stays in your browser.
+If your work needs the chat surface or the live in-conversation mutator pipeline, that is the variant. Free, no signup, your BYOK key stays in your browser. The OSS variant in this repo is intentionally scoped to the **tools** layer; it does not and will not ship the chat playground or the attack-chain composer.
 
 ---
 
@@ -318,9 +312,9 @@ Cryptex OSS bundles small red-team corpora (glitch tokens, adversarial suffixes,
   </picture>
 </p>
 <p align="left">
-  <strong>Live:</strong> <a href="https://cryptex.m4xx.cfd/?ref=github.com">cryptex.m4xx.cfd</a> 
-  <br>
-  <strong>Source:</strong> <a href="https://github.com/m4xx101/cryptex-oss">github.com/m4xx101/cryptex-oss</a> 
+  <strong>Source:</strong> <a href="https://github.com/m4xx101/cryptex-oss">github.com/m4xx101/cryptex-oss</a>
   <br>
   <strong>Recipes:</strong> <a href="docs/USAGE.md">docs/USAGE.md</a>
+  <br>
+  <strong>Sibling product:</strong> <a href="https://cryptex.m4xx.cfd/?ref=github.com">cryptex.m4xx.cfd</a> (chat playground, attack-chain composer; separate codebase)
 </p>
