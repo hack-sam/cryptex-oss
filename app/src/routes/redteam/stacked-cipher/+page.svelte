@@ -1,17 +1,20 @@
 <script lang="ts">
   /**
-   * Stacked-cipher attack lab (v2.2 Wave 10.6).
+   * Stacked-cipher attack lab (v2.4 SOTA upgrade).
    *
-   * SEAL family from arXiv:2505.16241 (May 2025). Wrap a forbidden prompt
-   * in N cipher layers. Target peels them off and answers the decoded
-   * plaintext, having committed to "helpful decoder" mode by the time the
-   * unwrapped intent is exposed.
+   * SEAL family expanded: 15 cipher layers, 3 framing variants, 4 format
+   * wraps (none/json/xml/yaml), 12 curated stack presets, entropy meter.
    */
   import { onDestroy, untrack } from 'svelte';
   import {
     buildStackedCipherPayload,
     stackName,
+    layerName,
+    ALL_LAYERS,
+    STACK_PRESETS,
     type CipherLayer,
+    type FramingStyle,
+    type FormatWrap,
     type StackedCipherVaultPayload
   } from '$lib/redteam/stacked-cipher';
   import { looksRefused, scoreBypass } from '$lib/components/tools/promptcraft/orchestrators/types';
@@ -31,6 +34,7 @@
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Layers from 'lucide-svelte/icons/layers';
   import X from 'lucide-svelte/icons/x';
+  import Wand from 'lucide-svelte/icons/wand-sparkles';
 
   const TOOL_ID = 'stacked-cipher';
 
@@ -41,18 +45,12 @@
 
   const plaintext = useToolState<string>(TOOL_ID, 'plaintext', '');
   const stack = useToolState<CipherLayer[]>(TOOL_ID, 'stack', ['rot13', 'base64']);
+  const framing = useToolState<FramingStyle>(TOOL_ID, 'framing', 'decoder-mode');
+  const wrap = useToolState<FormatWrap>(TOOL_ID, 'wrap', 'none');
   const targetPref = createPersistedState<string>(
     'cryptex.stacked-cipher.target',
     'openrouter:openrouter/auto'
   );
-
-  const ALL_LAYERS: { id: CipherLayer; label: string }[] = [
-    { id: 'rot13', label: 'ROT13' },
-    { id: 'atbash', label: 'Atbash' },
-    { id: 'reverse', label: 'Reverse' },
-    { id: 'base64', label: 'Base64' },
-    { id: 'hex', label: 'Hex' }
-  ];
 
   function addLayer(layer: CipherLayer) {
     stack.value = [...stack.value, layer];
@@ -63,8 +61,11 @@
   function clearStack() {
     stack.value = [];
   }
+  function applyPreset(presetStack: CipherLayer[]) {
+    stack.value = [...presetStack];
+  }
 
-  // Debounce plaintext changes so encoding doesn't run on every keystroke.
+  // Debounce plaintext changes so encoding doesn't run per keystroke.
   let debouncedText = $state(plaintext.value);
   let dt: ReturnType<typeof setTimeout> | null = null;
   $effect(() => {
@@ -79,7 +80,12 @@
     if (dt) clearTimeout(dt);
   });
 
-  const built = $derived(buildStackedCipherPayload(debouncedText, stack.value));
+  const built = $derived(
+    buildStackedCipherPayload(debouncedText, stack.value, {
+      framing: framing.value,
+      wrap: wrap.value
+    })
+  );
 
   let testRunning = $state(false);
   let testReply = $state('');
@@ -109,7 +115,7 @@
         model: targetPref.value,
         messages: [{ role: 'user', content: built.framedPrompt }],
         temperature: 0.7,
-        max_tokens: 1024,
+        max_tokens: 1536,
         title: 'Cryptex/StackedCipher',
         signal: controller.signal
       });
@@ -126,6 +132,9 @@
         params: {
           op: 'test',
           stack: stack.value,
+          framing: framing.value,
+          wrap: wrap.value,
+          entropyBitsPerChar: built.entropyBitsPerChar,
           targetModel: targetPref.value,
           refused,
           score
@@ -153,6 +162,8 @@
     untrack(() => {
       stack.value = [...payload.stack];
       plaintext.value = payload.examplePlaintext;
+      if (payload.framing) framing.value = payload.framing;
+      if (payload.wrap) wrap.value = payload.wrap;
     });
   }
 </script>
@@ -161,22 +172,22 @@
   toolId={TOOL_ID}
   title="Stacked-cipher attack"
   accent="cipher"
-  description="SEAL family (arXiv:2505.16241): wrap a prompt in N cipher layers. Target peels them off and answers the decoded plaintext, having committed to decoder mode."
+  description="SEAL family (arXiv:2505.16241) with 18 cipher layers, 3 framing variants (decoder-mode / persona / puzzle-hint), 4 format wraps (none / json / xml / yaml), and 12 curated stack presets."
   usage={{
     title: 'Stacked cipher · Usage',
     bullets: [
-      'Pick 1-5 cipher layers; innermost is applied first.',
-      'Target decodes outermost-first, answers the unwrapped task.',
-      'Reported ASR 80-100% on Claude 3.5/3.7, o1/o4, Gemini 2.0, R1.',
-      'Heuristic verdict (looksRefused + scoreBypass), not paper judge.',
-      'Reuses /transforms+/bijection cipher catalogues conceptually.'
+      'Pick layers from the 18-cipher palette or apply a preset.',
+      'Innermost layer applied first; target decodes outermost-first.',
+      'Framing: decoder-mode (generic), persona (CipherBot), puzzle-hint (worked example).',
+      'Format wrap: none (raw), json, xml, or yaml around the encoded payload.',
+      'Entropy meter shows how scrambled the encoded payload is (bits per char).'
     ]
   }}
 >
   <div class="space-y-4">
     <NoProviderBanner context="tool" />
 
-    <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
+    <div class="grid gap-4 lg:grid-cols-[340px_1fr]">
       <div
         class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start"
       >
@@ -191,7 +202,7 @@
 
         <div class="space-y-1">
           {#if stack.value.length === 0}
-            <p class="text-xs italic text-muted-foreground">No layers yet. Add one below.</p>
+            <p class="text-xs italic text-muted-foreground">No layers yet. Add one below or apply a preset.</p>
           {:else}
             {#each stack.value as layer, i}
               <div
@@ -214,14 +225,15 @@
         </div>
 
         <div class="space-y-1">
-          <span class="text-xs text-muted-foreground">Add layer</span>
+          <span class="text-xs text-muted-foreground">Add cipher layer</span>
           <div class="flex flex-wrap gap-1">
             {#each ALL_LAYERS as l}
               <button
                 type="button"
-                onclick={() => addLayer(l.id)}
-                class="rounded-md border border-border bg-card/40 px-2 py-0.5 text-xs hover:bg-muted"
-                >+ {l.label}</button
+                onclick={() => addLayer(l)}
+                title={layerName(l)}
+                class="rounded-md border border-border bg-card/40 px-1.5 py-0.5 font-mono text-[10px] hover:bg-muted"
+                >+ {l}</button
               >
             {/each}
           </div>
@@ -233,6 +245,47 @@
               >Clear stack</button
             >
           {/if}
+        </div>
+
+        <div class="space-y-1">
+          <span class="text-xs text-muted-foreground">Apply preset</span>
+          <select
+            onchange={(e) => {
+              const preset = STACK_PRESETS.find((p) => p.id === (e.target as HTMLSelectElement).value);
+              if (preset) applyPreset(preset.stack);
+            }}
+            class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-[11px]"
+          >
+            <option value="">-- choose preset --</option>
+            {#each STACK_PRESETS as p}
+              <option value={p.id}>{p.label}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="space-y-1">
+          <span class="text-xs text-muted-foreground">Framing</span>
+          <select
+            bind:value={framing.value}
+            class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-xs"
+          >
+            <option value="decoder-mode">decoder-mode (generic)</option>
+            <option value="persona">persona (CipherBot)</option>
+            <option value="puzzle-hint">puzzle-hint (worked example)</option>
+          </select>
+        </div>
+
+        <div class="space-y-1">
+          <span class="text-xs text-muted-foreground">Format wrap</span>
+          <select
+            bind:value={wrap.value}
+            class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-xs"
+          >
+            <option value="none">none (raw)</option>
+            <option value="json">JSON object</option>
+            <option value="xml">XML element</option>
+            <option value="yaml">YAML block scalar</option>
+          </select>
         </div>
 
         <div class="space-y-1">
@@ -266,6 +319,12 @@
             <span class="font-medium text-foreground">Current stack</span>
           </p>
           <p class="font-mono">{stackName(stack.value)}</p>
+          {#if built.entropyBitsPerChar > 0}
+            <p class="mt-1 flex items-center gap-1.5">
+              <Wand size={11} class="text-primary" />
+              <span>Entropy: <span class="font-mono text-foreground">{built.entropyBitsPerChar.toFixed(2)}</span> bits/char</span>
+            </p>
+          {/if}
         </div>
       </div>
 
