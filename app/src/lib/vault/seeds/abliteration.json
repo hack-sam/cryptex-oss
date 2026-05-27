@@ -158,5 +158,229 @@
     "sourceUrl": "https://huggingface.co/huihui-ai/Phi-3-mini-4k-instruct-abliterated",
     "license": "MIT",
     "addedAt": 0
+  },
+  {
+    "id": "abl-hf-qwen3-8b-v2",
+    "schemaVersion": 1,
+    "title": "Qwen3-8B abliterated v2 (huihui-ai)",
+    "description": "v2 release with corrected layer-0 abliteration that fixes the garbled-output regression seen in v1. First-class thinking / nothink toggle inherits from Qwen3 — directly addresses the reasoning gap in the older Qwen3-7B vault entry.",
+    "payload": {
+      "hfId": "huihui-ai/Huihui-Qwen3-8B-abliterated-v2",
+      "baseFamily": "Qwen3",
+      "notes": "8B BF16 ~16GB. Laptop / desktop class. Thinking-toggle supported."
+    },
+    "tags": ["example", "abliterated", "qwen3", "reasoning", "thinking-toggle", "2026"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Huihui-Qwen3-8B-abliterated-v2",
+    "license": "Apache-2.0",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-qwen3-4b-v2",
+    "schemaVersion": 1,
+    "title": "Qwen3-4B abliterated v2 (laptop anchor)",
+    "description": "Smallest competent thinking-capable abliterated Qwen3. Laptop-class anchor (4B, ~8GB). Fixed-layer-0 v2 release.",
+    "payload": {
+      "hfId": "huihui-ai/Huihui-Qwen3-4B-abliterated-v2",
+      "baseFamily": "Qwen3",
+      "notes": "4B params. Fits on a 12GB laptop GPU comfortably. Thinking-toggle supported."
+    },
+    "tags": ["example", "abliterated", "qwen3", "laptop", "thinking-toggle"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Huihui-Qwen3-4B-abliterated-v2",
+    "license": "Apache-2.0",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-deepseek-r1-0528-qwen3",
+    "schemaVersion": 1,
+    "title": "DeepSeek-R1-0528 Qwen3-8B abliterated",
+    "description": "May 2025 DeepSeek-R1 refresh distilled into Qwen3-8B. Native long-form reasoning trace, refusal-ablated. Stronger than the older R1-Distill-Llama-8B vault entry for refusal-resistant chain-of-thought research.",
+    "payload": {
+      "hfId": "huihui-ai/DeepSeek-R1-0528-Qwen3-8B-abliterated",
+      "baseFamily": "DeepSeek-R1",
+      "notes": "Latest DeepSeek-R1 distillation generation. Visible <think> CoT channel."
+    },
+    "tags": ["example", "abliterated", "deepseek-r1", "reasoning", "chain-of-thought"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/DeepSeek-R1-0528-Qwen3-8B-abliterated",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-qwq-32b",
+    "schemaVersion": 1,
+    "title": "QwQ-32B abliterated (long-form reasoner)",
+    "description": "Alibaba's pre-Qwen3 deliberative reasoning model, refusal-ablated. 17+ downstream community merges built on top of this base. Server-class (33B).",
+    "payload": {
+      "hfId": "huihui-ai/QwQ-32B-abliterated",
+      "baseFamily": "QwQ",
+      "notes": "33B params. ~64GB BF16; ~20GB at 4-bit. Long-form deliberation reasoner."
+    },
+    "tags": ["example", "abliterated", "qwq", "reasoning", "server-class"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/QwQ-32B-abliterated",
+    "license": "Apache-2.0",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-qwen3-coder-30b-a3b",
+    "schemaVersion": 1,
+    "title": "Qwen3-Coder-30B-A3B abliterated (MoE)",
+    "description": "Abliterated coder MoE: 31B total parameters, only 3B active. Desktop GPUs can run via offloading. Major capability jump over the earlier Qwen2.5-Coder-7B entry for code-side guardrail research.",
+    "payload": {
+      "hfId": "huihui-ai/Huihui-Qwen3-Coder-30B-A3B-Instruct-abliterated",
+      "baseFamily": "Qwen3-Coder",
+      "notes": "MoE 31B/3B-active. Coder-specialized abliterated variant."
+    },
+    "tags": ["example", "abliterated", "coder", "moe", "qwen3"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Huihui-Qwen3-Coder-30B-A3B-Instruct-abliterated",
+    "license": "Apache-2.0",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-qwen2.5-vl-7b",
+    "schemaVersion": 1,
+    "title": "Qwen2.5-VL-7B abliterated (vision-language)",
+    "description": "First vision-language abliterated model in the vault. Text-pathway refusal-ablated; vision tower untouched. Useful for image-conditioned jailbreak research.",
+    "payload": {
+      "hfId": "huihui-ai/Qwen2.5-VL-7B-Instruct-abliterated",
+      "baseFamily": "Qwen2.5-VL",
+      "notes": "Vision-language. Laptop / desktop class."
+    },
+    "tags": ["example", "abliterated", "vision", "multimodal", "qwen2.5-vl"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Qwen2.5-VL-7B-Instruct-abliterated",
+    "license": "Apache-2.0",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-qwen3-vl-8b",
+    "schemaVersion": 1,
+    "title": "Qwen3-VL-8B abliterated (newer-gen vision)",
+    "description": "Newer Qwen3-generation vision-language abliterated variant. Pair with the Qwen2.5-VL entry to compare generation-level VL behavior under refusal-direction ablation.",
+    "payload": {
+      "hfId": "huihui-ai/Huihui-Qwen3-VL-8B-Instruct-abliterated",
+      "baseFamily": "Qwen3-VL",
+      "notes": "Vision-language. ~50k monthly downloads at vault-update time."
+    },
+    "tags": ["example", "abliterated", "vision", "multimodal", "qwen3-vl"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Huihui-Qwen3-VL-8B-Instruct-abliterated",
+    "license": "Apache-2.0",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-qwen3.5-35b-a3b",
+    "schemaVersion": 1,
+    "title": "Qwen3.5-35B-A3B abliterated (mid-gen MoE)",
+    "description": "Mid-generation Qwen3.5 MoE. Ships its own thinking template. Strong research-grade reasoner slot above 30B but below 70B.",
+    "payload": {
+      "hfId": "huihui-ai/Huihui-Qwen3.5-35B-A3B-abliterated",
+      "baseFamily": "Qwen3.5",
+      "notes": "MoE 36B/3B-active. Thinking-mode native."
+    },
+    "tags": ["example", "abliterated", "qwen3.5", "moe", "thinking", "server-class"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Huihui-Qwen3.5-35B-A3B-abliterated",
+    "license": "Apache-2.0",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-qwen3.6-27b-mtp",
+    "schemaVersion": 1,
+    "title": "Qwen3.6-27B-MTP abliterated (latest gen)",
+    "description": "Latest Qwen3.6 generation (May 2026). MTP = multi-token prediction variant. Newest dense Qwen abliterated when this vault entry shipped.",
+    "payload": {
+      "hfId": "huihui-ai/Huihui-Qwen3.6-27B-abliterated-MTP",
+      "baseFamily": "Qwen3.6",
+      "notes": "27B dense. Multi-token-prediction speedup variant."
+    },
+    "tags": ["example", "abliterated", "qwen3.6", "mtp", "2026", "desktop"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Huihui-Qwen3.6-27B-abliterated-MTP",
+    "license": "Apache-2.0",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-gemma-4-26b-a4b",
+    "schemaVersion": 1,
+    "title": "Gemma-4-26B-A4B abliterated (any-to-any multimodal)",
+    "description": "Newest Google Gemma generation, refusal-ablated. Any-to-any multimodal. ~74k monthly downloads — most-downloaded entry in the huihui catalogue at the time of vault refresh. Supersedes the older Gemma-2-9B entry.",
+    "payload": {
+      "hfId": "huihui-ai/Huihui-gemma-4-26B-A4B-it-abliterated",
+      "baseFamily": "Gemma-4",
+      "notes": "Any-to-any multimodal. 27B class. Desktop GPU comfortable."
+    },
+    "tags": ["example", "abliterated", "gemma-4", "multimodal", "any-to-any", "desktop"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Huihui-gemma-4-26B-A4B-it-abliterated",
+    "license": "Apache-2.0",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-granite-4.1-30b",
+    "schemaVersion": 1,
+    "title": "Granite-4.1-30B abliterated (IBM enterprise base)",
+    "description": "First non-Qwen / Llama / Gemma / Mistral base family in the vault. Granite-4.1 has a distinct safety training pipeline; useful for diversifying refusal-direction research surface.",
+    "payload": {
+      "hfId": "huihui-ai/Huihui-granite-4.1-30b-abliterated",
+      "baseFamily": "Granite",
+      "notes": "29B dense. IBM enterprise base — different alignment lineage than the Llama / Qwen / Gemma trees."
+    },
+    "tags": ["example", "abliterated", "granite", "ibm", "enterprise-base"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Huihui-granite-4.1-30b-abliterated",
+    "license": "Apache-2.0",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-phi-4-abliterated",
+    "schemaVersion": 1,
+    "title": "Phi-4 abliterated (MIT-licensed Microsoft)",
+    "description": "Phi-4 refusal-ablated. MIT-licensed; much more capable successor to the older Phi-3-mini entry (15B vs 3.8B, current-gen training data).",
+    "payload": {
+      "hfId": "huihui-ai/phi-4-abliterated",
+      "baseFamily": "Phi-4",
+      "notes": "15B dense. Strong code + math benchmark surface."
+    },
+    "tags": ["example", "abliterated", "phi-4", "microsoft", "mit-license"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/phi-4-abliterated",
+    "license": "MIT",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-gpt-oss-20b",
+    "schemaVersion": 1,
+    "title": "gpt-oss-20b abliterated (OpenAI-lineage)",
+    "description": "The only OpenAI-lineage weights in the vault. Major distribution-shift target for red-team comparisons since RLHF style differs from Meta / Alibaba / Google trees.",
+    "payload": {
+      "hfId": "huihui-ai/Huihui-gpt-oss-20b-BF16-abliterated",
+      "baseFamily": "gpt-oss",
+      "notes": "21B BF16. OpenAI-style alignment pipeline; useful baseline for cross-lineage refusal research."
+    },
+    "tags": ["example", "abliterated", "gpt-oss", "openai-lineage", "2025"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Huihui-gpt-oss-20b-BF16-abliterated",
+    "license": "Apache-2.0",
+    "addedAt": 0
+  },
+  {
+    "id": "abl-hf-mistral-small-24b-2501",
+    "schemaVersion": 1,
+    "title": "Mistral-Small-24B-2501 abliterated",
+    "description": "Mistral-Small-24B (January 2025 release), refusal-ablated. Only abliterated Mistral above 7B in the vault.",
+    "payload": {
+      "hfId": "huihui-ai/Mistral-Small-24B-Instruct-2501-abliterated",
+      "baseFamily": "Mistral-Small",
+      "notes": "24B dense. Featherless-AI inference-provider available out of the box."
+    },
+    "tags": ["example", "abliterated", "mistral-small", "desktop", "2025"],
+    "source": "bundled",
+    "sourceUrl": "https://huggingface.co/huihui-ai/Mistral-Small-24B-Instruct-2501-abliterated",
+    "license": "Apache-2.0",
+    "addedAt": 0
   }
 ]
