@@ -54,18 +54,31 @@ let _status = $state<SyncStatus>(
 let _queued = 0;
 
 function rebuildProvider(): void {
-  if (_config.enabled && _config.provider === 'supabase' && isLikelyValidConfig(_config)) {
+  // Build the provider whenever the config is structurally valid. The
+  // `enabled` flag is consulted by the fire-and-forget call sites
+  // (syncRunFireAndForget etc. below) — NOT by provider construction.
+  // This lets "Test connection" in the Settings panel work before the user
+  // clicks Save & enable, without flipping the "Disabled" status chip.
+  let constructorFailed = false;
+  if (_config.provider === 'supabase' && isLikelyValidConfig(_config)) {
     try {
       _provider = createSupabaseProvider(_config);
     } catch {
       _provider = null;
-      _status = { kind: 'error', message: 'Invalid Supabase URL or anon key.' };
+      constructorFailed = true;
     }
   } else {
     _provider = null;
-    _status = _config.enabled
-      ? { kind: 'error', message: 'Sync enabled but URL/key missing.' }
-      : { kind: 'disabled' };
+  }
+
+  if (!_config.enabled) {
+    _status = { kind: 'disabled' };
+  } else if (constructorFailed) {
+    _status = { kind: 'error', message: 'Invalid Supabase URL or anon key.' };
+  } else if (!_provider) {
+    _status = { kind: 'error', message: 'Sync enabled but URL/key missing.' };
+  } else {
+    _status = { kind: 'idle', lastSyncedAt: _config.lastSyncedAt };
   }
 }
 
