@@ -37,11 +37,11 @@
 </p>
 
 <p align="center">
+  <a href="https://m4xx101.github.io/cryptex-oss/transforms/"><strong>Try Online→</strong></a>
+  &nbsp;·&nbsp;
   <a href="#self-host-in-30-seconds"><strong>Self-host in 30 seconds</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/USAGE.md"><strong>Offensive recipes</strong></a>
-  &nbsp;·&nbsp;
-  <a href="#cryptex-production"><strong>Cryptex Production →</strong></a>
   &nbsp;·&nbsp;
   <a href="CHANGELOG.md"><strong>Changelog</strong></a>
 </p>
