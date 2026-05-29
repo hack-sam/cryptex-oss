@@ -29,6 +29,7 @@
   import VaultSection from '$lib/components/vault/VaultSection.svelte';
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
+  import ContextBridge from '$lib/components/shell/ContextBridge.svelte';
   import Copy from 'lucide-svelte/icons/copy';
   import Play from 'lucide-svelte/icons/play';
   import Loader from 'lucide-svelte/icons/loader-circle';
@@ -296,6 +297,15 @@
             recentsKey="cryptex.stacked-cipher.recentTarget"
           />
         </div>
+
+        <ContextBridge
+          goal={plaintext.value}
+          targetModel={targetPref.value}
+          onHydrate={({ goal: g, targetModel: t }) => {
+            if (g) plaintext.value = g;
+            if (t) targetPref.value = t;
+          }}
+        />
 
         <div class="border-t border-border/40 pt-3">
           <button

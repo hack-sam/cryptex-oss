@@ -5,6 +5,7 @@
   import { chat, hasAnyKey as hasApiKey } from '$lib/ai/gateway';
   import { GatewayError as OpenRouterError } from '$lib/ai/types';
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
+  import ContextBridge from '$lib/components/shell/ContextBridge.svelte';
   import { Combobox } from '$lib/components/ui/combobox';
   import type { ComboboxOption } from '$lib/components/ui/combobox';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
@@ -713,6 +714,15 @@
           value={modelPref.value}
           onChange={(v) => (modelPref.value = v)}
           recentsKey="cryptex.pc.recentModels"
+        />
+
+        <ContextBridge
+          goal={s.input}
+          targetModel={modelPref.value}
+          onHydrate={({ goal: g, targetModel: t }) => {
+            if (g) s.input = g;
+            if (t) modelPref.value = t;
+          }}
         />
 
         {#if s.mode === 'single'}

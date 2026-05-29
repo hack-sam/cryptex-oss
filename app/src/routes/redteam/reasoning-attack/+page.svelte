@@ -42,6 +42,7 @@
   import ToolShell from '$lib/components/shell/ToolShell.svelte';
   import VaultSection from '$lib/components/vault/VaultSection.svelte';
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
+  import ContextBridge from '$lib/components/shell/ContextBridge.svelte';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import Copy from 'lucide-svelte/icons/copy';
   import Play from 'lucide-svelte/icons/play';
@@ -409,6 +410,15 @@
             recentsKey="cryptex.reasoning-attack.recentTarget"
           />
         </div>
+
+        <ContextBridge
+          goal={goal.value}
+          targetModel={targetPref.value}
+          onHydrate={({ goal: g, targetModel: t }) => {
+            if (g) goal.value = g;
+            if (t) targetPref.value = t;
+          }}
+        />
 
         <label class="block space-y-1">
           <span class="text-xs text-muted-foreground"

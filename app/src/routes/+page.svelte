@@ -4,7 +4,8 @@
   import { base } from '$app/paths';
 
   onMount(() => {
-    goto(base + '/transforms/', { replaceState: true });
+    // v2.6: the Campaign front door is the home landing page (toolbox -> pipeline).
+    goto(base + '/campaign/', { replaceState: true });
   });
 </script>
 
