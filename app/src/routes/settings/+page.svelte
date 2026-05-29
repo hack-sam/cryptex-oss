@@ -115,9 +115,9 @@
     <!-- Sidebar nav -->
     <aside class="lg:sticky lg:top-20 lg:self-start">
       <nav aria-label="Settings sections" class="rounded-xl border border-border bg-card/60 p-2 shadow-glass">
-        <ul class="flex flex-row gap-1 overflow-x-auto lg:flex-col lg:gap-0.5 cryptex-scroll">
+        <ul class="flex flex-col gap-0.5 cryptex-scroll">
           {#each visibleSections as s (s.id)}
-            <li class="flex-shrink-0 lg:w-full">
+            <li class="w-full">
               <button
                 type="button"
                 onclick={() => setActive(s.id)}

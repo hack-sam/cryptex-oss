@@ -22,12 +22,25 @@
   import { tabs } from './TabRail.svelte';
   import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import X from 'lucide-svelte/icons/x';
+  import HelpCircle from 'lucide-svelte/icons/circle-help';
+  import Info from 'lucide-svelte/icons/info';
+  import Settings from 'lucide-svelte/icons/settings';
 
   interface Props {
     open: boolean;
     onclose: () => void;
   }
   let { open, onclose }: Props = $props();
+
+  // Static "More" links — Guide / About / Settings. On mobile the header
+  // hides the Guide button and About has no header entry, so without these
+  // the only way to reach them on a phone is by typing the URL. (v2.5.0
+  // shipped the drawer with tools only; this closes that gap.)
+  const moreLinks = [
+    { href: '/guide/', label: 'Guide', icon: HelpCircle },
+    { href: '/about/', label: 'About', icon: Info },
+    { href: '/settings/', label: 'Settings', icon: Settings }
+  ];
 
   let dialog: HTMLDivElement | undefined = $state();
   let firstFocusable: HTMLAnchorElement | undefined = $state();
@@ -181,6 +194,31 @@
                     class="inline-block h-2 w-2 animate-pulse rounded-full bg-primary"
                   ></span>
                 {/if}
+              </a>
+            </li>
+          {/each}
+        </ul>
+      </section>
+
+      <section class="mt-6">
+        <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">More</h3>
+        <ul class="flex flex-col gap-1">
+          {#each moreLinks as link (link.href)}
+            {@const active = isActive(link.href)}
+            <li>
+              <a
+                href={base + link.href}
+                onclick={(e) => handleSelect(e, link.href)}
+                aria-current={active ? 'page' : undefined}
+                class={cn(
+                  'group relative flex min-h-12 items-center gap-3 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                  active
+                    ? 'border-primary/50 bg-primary/10 text-primary'
+                    : 'border-border/60 bg-card/40 text-foreground hover:bg-muted'
+                )}
+              >
+                <link.icon size={18} class={active ? 'text-primary' : 'text-muted-foreground'} />
+                <span class="flex-1">{link.label}</span>
               </a>
             </li>
           {/each}
