@@ -2,6 +2,25 @@
 
 All notable changes to Cryptex OSS land here. Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). Versioning follows [SemVer](https://semver.org/).
 
+## [2.7.1] - 2026-05-31
+
+Critical fix. v2.7.0 (and, it turns out, v2.6.0 / v2.6.1) shipped a client-side regression that left the app **non-interactive in production**: the page rendered, but model pickers would not open, expanders would not expand, and runs would not start.
+
+### Fixed
+
+- **App non-interactive (an effect-update-depth loop crashed hydration).** The Campaign front door (the home route) mirrored its goal into the shared cross-tool context with a reactive `$effect` (`sharedContext.goal = goal`). That setter spreads (reads) the persisted context object before reassigning it, and `createPersistedState` did not dedup writes, so the effect depended on the very value it wrote and looped until Svelte aborted with `effect_update_depth_exceeded`. The throw on mount of the home route wedged the Svelte client scheduler and left every interactive control across the SPA dead (the prerendered HTML still rendered, so it looked fine). Two coordinated fixes:
+  - `app/src/lib/components/tools/campaign/CampaignTool.svelte`: the goal-to-context mirror now tracks only `goal`, performs the shared-store read+write inside `untrack()`, and skips no-op writes.
+  - `app/src/lib/stores/_persisted.svelte.ts`: `createPersistedState` now dedups structurally-equal writes, a class-wide guard so no future effect can infinite-loop on a persisted store.
+- New regression test (`app/src/lib/stores/__tests__/persisted-no-loop.svelte.test.ts`) drives the exact loop pattern through `$effect.root` + `flushSync` and asserts it settles instead of throwing.
+
+### Process
+
+- Root cause of the miss: prior release verification only confirmed pages *rendered* (a prerendered CSR shell always renders) and never tested *interactivity*. The release gate now adds a mount/effect regression test and a live "open the model picker" check.
+
+### Image
+
+- `ghcr.io/m4xx101/cryptex-oss:v2.7.1` (multi-arch `linux/amd64` + `linux/arm64`). `:latest`, `:v2.7`, `:2.7` track this tag.
+
 ## [2.7.0] - 2026-05-31
 
 SOTA attack labs land, and the dead-on-frontier techniques get an honest **Legacy** flag (kept, never removed). The headline is a new prompt-level **structured-output / control-plane** attack lab, plus three 2025-2026 single-prompt mutators.
