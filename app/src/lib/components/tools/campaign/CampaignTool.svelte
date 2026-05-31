@@ -10,6 +10,7 @@
    * The 26 individual tools remain as power-user escape hatches; this is the
    * front door that the home route lands on.
    */
+  import { untrack } from 'svelte';
   import { base } from '$app/paths';
   import ToolShell from '$lib/components/shell/ToolShell.svelte';
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
@@ -50,8 +51,18 @@
   // Goal is bound to the shared cross-tool context so "Send to Campaign →"
   // from other tools pre-fills it, and a goal typed here flows back out.
   let goal = $state(sharedContext.goal);
+  // Mirror the typed goal back into the shared cross-tool context so other
+  // tools can pick it up. Guarded on purpose: track only `goal`, do the
+  // shared-store read+write inside untrack(), and skip no-op writes. Without
+  // the guard, the sharedContext.goal setter spreads (reads) _ctx.value before
+  // reassigning it, so this effect would depend on the value it writes —
+  // a self-retriggering loop that throws effect_update_depth_exceeded and
+  // crashes hydration on the home route.
   $effect(() => {
-    sharedContext.goal = goal;
+    const g = goal;
+    untrack(() => {
+      if (sharedContext.goal !== g) sharedContext.goal = g;
+    });
   });
 
   const keyConfigured = $derived(hasApiKey());
