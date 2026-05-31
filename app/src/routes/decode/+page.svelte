@@ -7,7 +7,7 @@
   toolId="decode"
   title="Universal decoder"
   accent="decoder"
-  description="Paste any suspicious-looking text — ciphertext, Base64, binary, Unicode-abused strings, emoji steganography. The decoder runs every transformer's detector, ranks candidates by priority, and surfaces alternatives."
+  description="Paste any suspicious-looking text — ciphertext, Base64, binary, Unicode-abused strings, emoji steganography. The decoder runs every transformer's detector, ranks candidates by priority, and surfaces alternatives. Single-layer encodings are reversible primitives, effective as composable layers rather than standalone frontier bypasses."
   usage={{
     title: 'Universal decoder · Usage',
     bullets: [

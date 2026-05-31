@@ -10,7 +10,7 @@
   toolId="transforms"
   title="Transform lab"
   accent="lab"
-  description={`${transformCount} transforms — encodings, classical & modern ciphers, Unicode styles, ancient scripts, and steganography. Pick any tile to encode or decode the text on the left.`}
+  description={`${transformCount} transforms — encodings, classical & modern ciphers, Unicode styles, ancient scripts, and steganography. Pick any tile to encode or decode the text on the left. Single-layer ciphers, encodings, and ancient scripts are reversible primitives: effective as layers (cipher-stack, base64-smuggle, composites), not standalone frontier bypasses.`}
   usage={{
     title: 'Transform lab · Usage',
     bullets: [

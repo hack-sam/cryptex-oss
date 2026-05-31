@@ -220,7 +220,7 @@
   toolId={TOOL_ID}
   title="Adversarial suffix"
   accent="suffix"
-  description="Curated public corpus of GCG / AutoDAN / HarmBench / PAIR / TAP / PAP / Best-of-N transferable adversarial suffixes from peer-reviewed 2023-2026 red-team literature. Hit rate on current frontier models is always lower than paper numbers — labs train against these."
+  description="Legacy: frontier models patched single-shot suffix transfer. Keep it as a regression-detection baseline or a composable layer inside cipher-stacks and composites, not a standalone bypass on SOTA models. Curated public corpus of GCG / AutoDAN / HarmBench / PAIR / TAP / PAP / Best-of-N transferable adversarial suffixes from peer-reviewed 2023-2026 red-team literature. Hit rate on current frontier models is always lower than paper numbers — labs train against these."
   usage={{
     title: 'Adversarial suffix · Usage',
     bullets: [

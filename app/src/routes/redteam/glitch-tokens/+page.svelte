@@ -208,7 +208,7 @@
   toolId={TOOL_ID}
   title="Glitch tokens"
   accent="tokens"
-  description="Tokenizer artifacts that produce undefined model behavior — gibberish, repeat-loops, training-data leaks, crashes. Per-family because each tokenizer has its own set: a token toxic to GPT-4 is benign to Claude. Combo Builder pairs glitch + suffix + base prompt in four patterns."
+  description="Legacy: frontier tokenizers patched the known glitch-token sets. Keep it as an educational primitive or a composable layer, not a standalone bypass on SOTA models. Tokenizer artifacts that produce undefined model behavior — gibberish, repeat-loops, training-data leaks, crashes. Per-family because each tokenizer has its own set: a token toxic to GPT-4 is benign to Claude. Combo Builder pairs glitch + suffix + base prompt in four patterns."
   usage={{
     title: 'Glitch tokens · Usage',
     bullets: [
